@@ -10,3 +10,6 @@ Currently, two official plugins are available:
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## View Wallocate Figma
+https://www.figma.com/design/myLYHehH1J39KJl3C0CE7y/Wallocate?node-id=29-771&t=Ne6pQk0NtbpcR3tM-1
