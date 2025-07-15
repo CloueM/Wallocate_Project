@@ -1,13 +1,15 @@
-
+// src/App.jsx
+import React from 'react';
+import Layout from './components/Layout';
+import './index.css';              // if not already imported somewhere
 
 const App = () => {
   return (
-    <main>
-        <div>
-            <h1 className="text-main"> Welcome to Wallocate </h1>
-        </div>
-    </main>
-  )
-}
+    <Layout>
+      <div>
+      </div>
+    </Layout>
+  );
+};
 
-export default App
+export default App;

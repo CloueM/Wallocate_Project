@@ -6,27 +6,58 @@
   --background-color: #1A1A1A;
   --primary-color: #617953;
   --secondary-color: #9DA28B;
-  --savings-color:#C9B44B;
+  --savings-color: #C9B44B;
   --needs-color: #5C6F91;
   --wants-color: #FF9060;
 }
 
-html{
+html {
   background-color: var(--background-color);
-  color: var(--text-color);
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
 }
 
-@layer utilities{
+@layer utilities {
   .flex-center {
     @apply flex justify-center items-center;
   }
 
-  .text-main{
-    @apply text-[56px];
-    color: var(--prime-text-color)
+  .text-main {
+    @apply text-[56px] font-bold;
+    color: var(--prime-text-color);
+    font-family: 'Outfit', sans-serif;
   }
-  @apply text-sm;
-  .text-sub{
-    color: var(--secondary-color)
+
+  .text-sub {
+    @apply text-sm;
+    color: var(--secondary-color);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 400;
+  }
+
+  /* New text size utility classes */
+  .slogan-txt {
+    @apply text-[56px] font-bold;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .sub-slogan-txt {
+    @apply text-[16px];
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .small-txt {
+    @apply text-[14px];
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .medium-txt {
+    @apply text-[20px];
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .large-txt {
+    @apply text-[24px];
+    font-family: 'Outfit', sans-serif;
   }
 }
