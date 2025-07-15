@@ -7,7 +7,7 @@ import './index.css';              // if not already imported somewhere
 const App = () => {
   return (
     <Layout>
-      
+      <HeroSection />
     </Layout>
   );
 };
