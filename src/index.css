@@ -17,6 +17,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html, body {
   color: var(--prime-text-color);
   font-family: 'Outfit', sans-serif;
@@ -298,4 +302,342 @@ html, body {
 .large-txt {
   font-size: 24px;
   font-family: 'Outfit', sans-serif;
+}
+
+/* Plan Section Styles */
+.plan-section {
+  min-height: 100vh;
+  background-color: var(--background-color);
+  padding: 8rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plan-container {
+  max-width: 1400px;
+  width: 100%;
+  display: flex;
+  gap: 6rem;
+  align-items: flex-start;
+}
+
+/* Left Container */
+.plan-left {
+  flex: 1;
+  max-width: 600px;
+}
+
+.plan-title {
+  font-size: 56px;
+  font-weight: bold;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  margin-bottom: 1.5rem;
+  line-height: 1.1;
+}
+
+.plan-subtitle {
+  font-size: 18px;
+  color: var(--secondary-color);
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.5;
+  margin-bottom: 4rem;
+}
+
+.percentage-display {
+  margin-bottom: 3rem;
+}
+
+.percentage-item {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.percentage-value {
+  font-size: 32px;
+  font-weight: bold;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  min-width: 80px;
+}
+
+.percentage-bar {
+  flex: 1;
+  height: 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.percentage-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.needs-fill {
+  background-color: var(--needs-color);
+}
+
+.savings-fill {
+  background-color: var(--savings-color);
+}
+
+.wants-fill {
+  background-color: var(--wants-color);
+}
+
+.category-circles {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.category-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'Outfit', sans-serif;
+  color: var(--background-color);
+}
+
+.needs-circle {
+  background-color: var(--needs-color);
+}
+
+.savings-circle {
+  background-color: var(--savings-color);
+}
+
+.wants-circle {
+  background-color: var(--wants-color);
+}
+
+/* Right Container */
+.plan-right {
+  flex: 1;
+  max-width: 500px;
+}
+
+.income-section {
+  margin-bottom: 3rem;
+}
+
+.income-label {
+  display: block;
+  font-size: 14px;
+  color: var(--secondary-color);
+  font-family: 'Outfit', sans-serif;
+  margin-bottom: 1rem;
+}
+
+.income-input-container {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  border-radius: 30px;
+  padding: 1rem 2rem;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.currency-symbol {
+  font-size: 24px;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  margin-right: 0.5rem;
+}
+
+.income-input {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  flex: 1;
+  outline: none;
+}
+
+.current-budget {
+  margin-bottom: 3rem;
+}
+
+.current-budget-title {
+  font-size: 16px;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  margin-bottom: 1.5rem;
+}
+
+.budget-breakdown {
+  margin-bottom: 2rem;
+}
+
+.budget-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.budget-percentage {
+  min-width: 60px;
+  height: 32px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Outfit', sans-serif;
+  color: var(--background-color);
+}
+
+.needs-bg {
+  background-color: var(--needs-color);
+}
+
+.savings-bg {
+  background-color: var(--savings-color);
+}
+
+.wants-bg {
+  background-color: var(--wants-color);
+}
+
+.budget-label {
+  font-size: 16px;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  flex: 1;
+}
+
+.edit-btn {
+  background: transparent;
+  border: none;
+  color: var(--secondary-color);
+  font-size: 14px;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.edit-btn:hover {
+  color: var(--primary-color);
+}
+
+.plan-name {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  margin-bottom: 0.5rem;
+}
+
+.plan-description {
+  font-size: 14px;
+  color: var(--secondary-color);
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.4;
+}
+
+.budget-options {
+  margin-bottom: 2rem;
+}
+
+.options-title {
+  font-size: 18px;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  margin-bottom: 2rem;
+}
+
+.budget-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.budget-option {
+  padding: 1.5rem;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.budget-option:hover {
+  border-color: var(--primary-color);
+  background: linear-gradient(
+    180deg,
+    rgba(97, 121, 83, 0.1) 0%,
+    rgba(97, 121, 83, 0.05) 100%
+  );
+}
+
+.budget-option.selected {
+  border-color: var(--primary-color);
+  background: linear-gradient(
+    180deg,
+    rgba(97, 121, 83, 0.15) 0%,
+    rgba(97, 121, 83, 0.08) 100%
+  );
+}
+
+.option-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  margin-bottom: 0.5rem;
+}
+
+.option-description {
+  font-size: 12px;
+  color: var(--secondary-color);
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.4;
+}
+
+.continue-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0 auto;
+}
+
+.continue-btn:hover {
+  background-color: var(--secondary-color);
+  transform: scale(1.05);
+}
+
+.continue-btn span {
+  font-size: 24px;
+  color: var(--background-color);
+  font-weight: bold;
 }

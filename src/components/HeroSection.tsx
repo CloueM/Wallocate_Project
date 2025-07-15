@@ -49,7 +49,16 @@ const HeroSection: React.FC = () => {
             <p className="hero-sub-slogan">
               Allocate your earnings into Needs, Wants, Savings, and Investments—all based on what matters to you.
             </p>
-            <button className="hero-button">Continue</button>
+            <button 
+              className="hero-button"
+              onClick={() => {
+                document.getElementById('plan')?.scrollIntoView({ 
+                  behavior: 'smooth' 
+                });
+              }}
+            >
+              Continue
+            </button>
           </div>
 
           {/* Right Container - Logo Circle */}
