@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap');
+
+:root {
+  --prime-text-color: #F5F5F5;
+  --background-color: #1A1A1A;
+  --primary-color: #617953;
+  --secondary-color: #9DA28B;
+  --savings-color:#C9B44B;
+  --needs-color: #5C6F91;
+  --wants-color: #FF9060;
+}
+
+html{
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+@layer utilities{
+  .flex-center {
+    @apply flex justify-center items-center;
+  }
+
+  .text-main{
+    @apply text-[56px];
+    color: var(--prime-text-color)
+  }
+  @apply text-sm;
+  .text-sub{
+    color: var(--secondary-color)
+  }
+}
