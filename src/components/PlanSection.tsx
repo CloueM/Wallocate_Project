@@ -93,40 +93,30 @@ const PlanSection: React.FC = () => {
               <div className="percentage-bar">
                 <div 
                   className="percentage-fill needs-fill" 
-                  style={{ width: `${customPercentages.needs}%` }}
+                  style={{ height: `${customPercentages.needs}%` }}
                 ></div>
               </div>
+              <span className="category-label">Needs</span>
             </div>
             <div className="percentage-item">
               <span className="percentage-value">{customPercentages.savings}%</span>
               <div className="percentage-bar">
                 <div 
                   className="percentage-fill savings-fill" 
-                  style={{ width: `${customPercentages.savings}%` }}
+                  style={{ height: `${customPercentages.savings}%` }}
                 ></div>
               </div>
+              <span className="category-label">Savings</span>
             </div>
             <div className="percentage-item">
               <span className="percentage-value">{customPercentages.wants}%</span>
               <div className="percentage-bar">
                 <div 
                   className="percentage-fill wants-fill" 
-                  style={{ width: `${customPercentages.wants}%` }}
+                  style={{ height: `${customPercentages.wants}%` }}
                 ></div>
               </div>
-            </div>
-          </div>
-
-          {/* Category Circles */}
-          <div className="category-circles">
-            <div className="category-circle needs-circle">
-              <span>Needs</span>
-            </div>
-            <div className="category-circle savings-circle">
-              <span>Savings</span>
-            </div>
-            <div className="category-circle wants-circle">
-              <span>Wants</span>
+              <span className="category-label">Wants</span>
             </div>
           </div>
         </div>
@@ -147,48 +137,55 @@ const PlanSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Current Budget Style */}
-          <div className="current-budget">
+          {/* Plan Details Section */}
+          <div className="plan-details-container">
             <h3 className="current-budget-title">Current Budget Style:</h3>
-            <div className="budget-breakdown">
-              <div className="budget-item">
-                <div className="budget-percentage needs-bg">{customPercentages.needs}%</div>
-                <span className="budget-label">Needs</span>
-                <button className="edit-btn">Edit...</button>
-              </div>
-              <div className="budget-item">
-                <div className="budget-percentage savings-bg">{customPercentages.savings}%</div>
-                <span className="budget-label">Savings</span>
-                <button className="edit-btn">Edit...</button>
-              </div>
-              <div className="budget-item">
-                <div className="budget-percentage wants-bg">{customPercentages.wants}%</div>
-                <span className="budget-label">Wants</span>
-                <button className="edit-btn">Edit...</button>
-              </div>
-            </div>
-            <h4 className="plan-name">{selectedPlan.name}</h4>
-            <p className="plan-description">{selectedPlan.description}</p>
-          </div>
-
-          {/* Budget Style Options */}
-          <div className="budget-options">
-            <h3 className="options-title">Choose a Budgeting Style</h3>
-            <div className="budget-grid">
-              {budgetPlans.slice(1).map((plan, index) => (
-                <div 
-                  key={plan.name}
-                  className={`budget-option ${selectedPlan.name === plan.name ? 'selected' : ''}`}
-                  onClick={() => handlePlanSelect(plan)}
-                >
-                  <h4 className="option-name">{plan.name}</h4>
-                  <p className="option-description">{plan.description}</p>
+            <div className="current-budget-content">
+              <div className="current-budget-left">
+                
+                <div className="plan-info-container">
+                  <h4 className="plan-name">{selectedPlan.name}</h4>
+                  <p className="plan-description">{selectedPlan.description}</p>
                 </div>
-              ))}
+              </div>
+              <div className="current-budget-right">
+                <div className="budget-breakdown">
+                  <div className="budget-item">
+                    <button className="edit-btn">Edit...</button>
+                    <div className="budget-percentage needs-bg">{customPercentages.needs}%</div>
+                    <span className="budget-label">Needs</span>
+                  </div>
+                  <div className="budget-item">
+                    <button className="edit-btn">Edit...</button>
+                    <div className="budget-percentage savings-bg">{customPercentages.savings}%</div>
+                    <span className="budget-label">Savings</span>
+                  </div>
+                  <div className="budget-item">
+                    <button className="edit-btn">Edit...</button>
+                    <div className="budget-percentage wants-bg">{customPercentages.wants}%</div>
+                    <span className="budget-label">Wants</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <button className="continue-btn">
-              <span>→</span>
-            </button>
+            <div className="budget-options">
+              <h3 className="options-title">Choose a Budgeting Style</h3>
+              <div className="budget-grid">
+                {budgetPlans.slice(1).map((plan, index) => (
+                  <div 
+                    key={plan.name}
+                    className={`budget-option ${selectedPlan.name === plan.name ? 'selected' : ''}`}
+                    onClick={() => handlePlanSelect(plan)}
+                  >
+                    <h4 className="option-name">{plan.name}</h4>
+                    <p className="option-description">{plan.description}</p>
+                  </div>
+                ))}
+              </div>
+              <button className="continue-btn">
+                <span>→</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

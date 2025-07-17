@@ -33,7 +33,7 @@ html, body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  padding: 2rem;
+  padding: 10rem;
 }
 
 .hero-content {
@@ -44,8 +44,8 @@ html, body {
 }
 
 .glass-container {
-  width: 100rem;
-  height: 50rem;
+  width: 90rem;
+  height: 30rem;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.12) 0%,
@@ -62,7 +62,7 @@ html, body {
   border-radius: 20px;
   display: flex;
   align-items: center;
-  padding: 7rem;
+  padding: 9rem;
 }
 
 .hero-left {
@@ -113,8 +113,8 @@ html, body {
 }
 
 .logo-circle {
-  width: 35rem;
-  height: 35rem;
+  width: 25rem;
+  height: 25em;
   border-radius: 50%;
   background: var(--background-color);
   display: flex;
@@ -125,8 +125,7 @@ html, body {
 }
 
 .hero-logo {
-  width: 25rem;
-  height: 35rem;
+  width: 15em;
   object-fit: contain;
 }
 
@@ -309,76 +308,117 @@ html, body {
 
 /* Plan Section Styles */
 .plan-section {
-  min-height: 100vh;
+  height: 100vh;
   background-color: var(--background-color);
-  padding: 8rem 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  box-sizing: border-box;
 }
 
 .plan-container {
   max-width: 1400px;
   width: 100%;
+  height: 100%;
   display: flex;
   gap: 6rem;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Left Container */
 .plan-left {
   flex: 1;
   max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .plan-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   font-size: 56px;
   font-weight: bold;
   color: var(--prime-text-color);
   font-family: 'Outfit', sans-serif;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
   line-height: 1.1;
 }
 
 .plan-subtitle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   font-size: 18px;
   color: var(--secondary-color);
   font-family: 'Outfit', sans-serif;
   line-height: 1.5;
-  margin-bottom: 4rem;
-}
-
-.percentage-display {
   margin-bottom: 3rem;
 }
 
-.percentage-item {
+.percentage-display {
   display: flex;
+  gap: 7rem;
+  justify-content: center;
   align-items: center;
-  gap: 2rem;
-  margin-bottom: 2rem;
+  flex: 1;
+}
+
+.percentage-item {
+  
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
 }
 
 .percentage-value {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: bold;
   color: var(--prime-text-color);
   font-family: 'Outfit', sans-serif;
-  min-width: 80px;
+  text-align: center;
+}
+
+.category-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  text-align: center;
 }
 
 .percentage-bar {
-  flex: 1;
-  height: 12px;
+  width: 6rem;
+  height: 35rem;
   background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
+  border-radius:3rem;
   overflow: hidden;
+  position: relative;
+  -webkit-border-radius:3rem;
+  -moz-border-radius:3rem;
+  -ms-border-radius:3rem;
+  -o-border-radius:3rem;
 }
 
 .percentage-fill {
-  height: 100%;
-  border-radius: 6px;
-  transition: width 0.3s ease;
+  width: 100%;
+  border-radius: 3rem;
+  transition: height 0.3s ease;
+  position: absolute;
+  bottom: 0;
+  -webkit-border-radius: 3rem;
+  -moz-border-radius: 3rem;
+  -ms-border-radius: 3rem;
+  -o-border-radius: 3rem;
 }
 
 .needs-fill {
@@ -393,67 +433,66 @@ html, body {
   background-color: var(--wants-color);
 }
 
-.category-circles {
-  display: flex;
-  gap: 2rem;
-  justify-content: center;
-}
 
-.category-circle {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 600;
-  font-family: 'Outfit', sans-serif;
-  color: var(--background-color);
-}
-
-.needs-circle {
-  background-color: var(--needs-color);
-}
-
-.savings-circle {
-  background-color: var(--savings-color);
-}
-
-.wants-circle {
-  background-color: var(--wants-color);
-}
 
 /* Right Container */
 .plan-right {
   flex: 1;
   max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .income-section {
-  margin-bottom: 3rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.10) 15%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.06) 35%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.03) 65%,
+    rgba(255, 255, 255, 0.02) 75%,
+    rgba(255, 255, 255, 0.01) 85%,
+    transparent 100%
+  );
+  backdrop-filter: blur(60px);
+  border-radius: 20px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.10);
 }
 
 .income-label {
   display: block;
-  font-size: 14px;
-  color: var(--secondary-color);
+  font-size: 24px;
+  color: var(--prime-text-color);
   font-family: 'Outfit', sans-serif;
   margin-bottom: 1rem;
+  margin-right: 2rem;
+  text-align: center;
 }
 
 .income-input-container {
   display: flex;
   align-items: center;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    rgba(255, 255, 255, 0.04) 100%
-  );
-  border-radius: 30px;
-  padding: 1rem 2rem;
+  justify-content: center;
+  background: var(--primary-color);
+  border-radius:4rem;
+  padding: 1rem;
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  max-width: 13rem;
+  height: 4.5rem;
+  -webkit-border-radius:4rem;
+  -moz-border-radius:4rem;
+  -ms-border-radius:4rem;
+  -o-border-radius:4rem;
 }
 
 .currency-symbol {
@@ -471,41 +510,59 @@ html, body {
   font-family: 'Outfit', sans-serif;
   flex: 1;
   outline: none;
+  width: 100%;
 }
 
 .current-budget {
-  margin-bottom: 3rem;
+  margin-bottom: 1rem;
 }
 
 .current-budget-title {
-  font-size: 16px;
+  font-size: 18px;
   color: var(--prime-text-color);
   font-family: 'Outfit', sans-serif;
-  margin-bottom: 1.5rem;
+}
+
+.current-budget-content {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.current-budget-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.current-budget-right {
+  display: flex;
+  flex-direction: column;
 }
 
 .budget-breakdown {
-  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .budget-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
 }
 
 .budget-percentage {
   min-width: 60px;
-  height: 32px;
-  border-radius: 20px;
+  height: 60px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 60;
   font-family: 'Outfit', sans-serif;
-  color: var(--background-color);
+  color: var(--primary-text-color);
 }
 
 .needs-bg {
@@ -556,54 +613,113 @@ html, body {
   line-height: 1.4;
 }
 
-.budget-options {
-  margin-bottom: 2rem;
-}
 
 .options-title {
   font-size: 18px;
   color: var(--prime-text-color);
   font-family: 'Outfit', sans-serif;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .budget-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  margin-bottom: 2rem;
 }
 
 .budget-option {
   padding: 1.5rem;
   background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(255, 255, 255, 0.02) 100%
+   180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.10) 15%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.06) 35%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.03) 65%,
+    rgba(255, 255, 255, 0.02) 75%,
+    rgba(255, 255, 255, 0.01) 85%,
+    transparent 100%
   );
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(60px);
+  border-radius:3.5rem;
+
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  -webkit-border-radius: 3.5rem;
+  -moz-border-radius: 3.5rem;
+  -ms-border-radius: 3.5rem;
+  -o-border-radius: 3.5rem;
 }
 
-.budget-option:hover {
-  border-color: var(--primary-color);
+/* Standard Plan - Yellow */
+.budget-option:nth-child(1) {
   background: linear-gradient(
-    180deg,
-    rgba(97, 121, 83, 0.1) 0%,
-    rgba(97, 121, 83, 0.05) 100%
+  180deg,
+    rgba(255,193,7,0.15) 0%,
+    rgba(255,193,7,0.12) 15%,
+    rgba(255,193,7,0.10) 25%,
+    rgba(255,193,7,0.08) 35%,
+    rgba(255,193,7,0.06) 50%,
+    rgba(255,193,7,0.04) 65%,
+    rgba(255,193,7,0.03) 75%,
+    rgba(255,193,7,0.02) 85%,
+    transparent 100%
   );
 }
 
-.budget-option.selected {
-  border-color: var(--primary-color);
+/* Minimalist Plan - Beige */
+.budget-option:nth-child(2) {
   background: linear-gradient(
-    180deg,
-    rgba(97, 121, 83, 0.15) 0%,
-    rgba(97, 121, 83, 0.08) 100%
+  180deg,
+    rgba(245,245,220,0.15) 0%,
+    rgba(245,245,220,0.12) 15%,
+    rgba(245,245,220,0.10) 25%,
+    rgba(245,245,220,0.08) 35%,
+    rgba(245,245,220,0.06) 50%,
+    rgba(245,245,220,0.04) 65%,
+    rgba(245,245,220,0.03) 75%,
+    rgba(245,245,220,0.02) 85%,
+    transparent 100%
   );
 }
+
+/* Survival Plan - Red */
+.budget-option:nth-child(3) {
+  background: linear-gradient(
+  180deg,
+    rgba(220,53,69,0.15) 0%,
+    rgba(220,53,69,0.12) 15%,
+    rgba(220,53,69,0.10) 25%,
+    rgba(220,53,69,0.08) 35%,
+    rgba(220,53,69,0.06) 50%,
+    rgba(220,53,69,0.04) 65%,
+    rgba(220,53,69,0.03) 75%,
+    rgba(220,53,69,0.02) 85%,
+    transparent 100%
+  );
+}
+
+/* Saver's Plan - Green */
+.budget-option:nth-child(4) {
+  background: linear-gradient(
+  180deg,
+    rgba(25,135,84,0.15) 0%,
+    rgba(25,135,84,0.12) 15%,
+    rgba(25,135,84,0.10) 25%,
+    rgba(25,135,84,0.08) 35%,
+    rgba(25,135,84,0.06) 50%,
+    rgba(25,135,84,0.04) 65%,
+    rgba(25,135,84,0.03) 75%,
+    rgba(25,135,84,0.02) 85%,
+    transparent 100%
+  );
+}
+
 
 .option-name {
   font-size: 16px;
@@ -611,6 +727,7 @@ html, body {
   color: var(--prime-text-color);
   font-family: 'Outfit', sans-serif;
   margin-bottom: 0.5rem;
+  text-align: center;
 }
 
 .option-description {
@@ -618,11 +735,12 @@ html, body {
   color: var(--secondary-color);
   font-family: 'Outfit', sans-serif;
   line-height: 1.4;
+  text-align: center;
 }
 
 .continue-btn {
-  width: 60px;
-  height: 60px;
+  width: 3rem;
+  height: 3rem;
   border-radius: 50%;
   background-color: var(--primary-color);
   border: none;
@@ -643,4 +761,65 @@ html, body {
   font-size: 24px;
   color: var(--background-color);
   font-weight: bold;
+}
+
+.plan-info-container {
+  padding: 1.5rem;
+  background: linear-gradient(    180deg,    rgba(255, 255, 255, 0.12) 0%,    rgba(255, 255, 255, 0.10) 15%,    rgba(255, 255, 255, 0.08) 25%,    rgba(255, 255, 255, 0.06) 35%,    rgba(255, 255, 255, 0.04) 50%,    rgba(255, 255, 255, 0.03) 65%,    rgba(255, 255, 255, 0.02) 75%,    rgba(255, 255, 255, 0.01) 85%,    transparent 100%  );
+  backdrop-filter: blur(60px);
+  border-radius: 4rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  -webkit-border-radius: 4rem;
+  -moz-border-radius: 4rem;
+  -ms-border-radius: 4rem;
+  -o-border-radius: 4rem;
+}
+
+.plan-details-container {
+  width: 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.10) 15%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.06) 35%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.03) 65%,
+    rgba(255, 255, 255, 0.02) 75%,
+    rgba(255, 255, 255, 0.01) 85%,
+    transparent 100%
+  );
+  backdrop-filter: blur(60px);
+  border-radius: 20px;
+  padding-left:2rem;
+  padding-right:2rem;
+  padding-top:1rem;
+  padding-bottom:1rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.10);
+}
+
+/* Standard Plan - Green glow */
+.budget-option:nth-child(4):hover {
+  box-shadow: 0 0 25px rgba(5, 150, 32, 0.4);
+}
+
+/* Saver's Plan - Yellow glow */
+.budget-option:nth-child(1):hover {
+  box-shadow: 0 0 25px rgba(255, 193, 7, 0.4);
+}
+
+/* Minimalist Plan - Beige glow */
+.budget-option:nth-child(2):hover {
+  box-shadow: 0 0 25px rgb(208, 189, 164);
+}
+
+/* Survival Plan - Red glow */
+.budget-option:nth-child(3):hover {
+  box-shadow: 0 0 25px rgba(220, 53, 69, 0.4);
 }
