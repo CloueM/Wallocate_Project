@@ -1,5 +1,5 @@
 import { gsap } from 'gsap';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface BudgetPlan {
   name: string;
@@ -7,6 +7,19 @@ interface BudgetPlan {
   needs: number;
   savings: number;
   wants: number;
+}
+
+interface PlanSectionProps {
+  selectedPlan: BudgetPlan;
+  setSelectedPlan: (plan: BudgetPlan) => void;
+  customPercentages: {
+    needs: number;
+    savings: number;
+    wants: number;
+  };
+  setCustomPercentages: (percentages: { needs: number; savings: number; wants: number }) => void;
+  income: string;
+  setIncome: (income: string) => void;
 }
 
 const budgetPlans: BudgetPlan[] = [
@@ -47,14 +60,14 @@ const budgetPlans: BudgetPlan[] = [
   }
 ];
 
-const PlanSection: React.FC = () => {
-  const [income, setIncome] = useState<string>('3489');
-  const [selectedPlan, setSelectedPlan] = useState<BudgetPlan>(budgetPlans[0]);
-  const [customPercentages, setCustomPercentages] = useState({
-    needs: 50,
-    savings: 20,
-    wants: 30
-  });
+const PlanSection: React.FC<PlanSectionProps> = ({
+  selectedPlan,
+  setSelectedPlan,
+  customPercentages,
+  setCustomPercentages,
+  income,
+  setIncome
+}) => {
 
   // Refs for sliders and percentage labels
   const needsSliderRef = useRef<HTMLInputElement>(null);
@@ -246,7 +259,21 @@ const PlanSection: React.FC = () => {
                   onClick={() => {
                     if (totalPercentage === 100) {
                       console.log('Proceeding with budget plan:', selectedPlan.name);
-                      // Add your navigation or next step logic here
+                      // Enable scrolling temporarily
+                      document.body.style.overflow = 'auto';
+                      document.documentElement.style.overflow = 'auto';
+                      
+                      // Scroll to budget items section
+                      const budgetItemsSection = document.getElementById('budget-items');
+                      if (budgetItemsSection) {
+                        budgetItemsSection.scrollIntoView({ behavior: 'smooth' });
+                      }
+                      
+                      // Re-disable scrolling after animation
+                      setTimeout(() => {
+                        document.body.style.overflow = 'hidden';
+                        document.documentElement.style.overflow = 'hidden';
+                      }, 1000);
                     }
                   }}
                 >

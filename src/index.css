@@ -19,6 +19,11 @@
 
 html {
   scroll-behavior: smooth;
+  overflow: hidden;
+}
+
+body {
+  overflow: hidden;
 }
 
 html, body {
@@ -317,6 +322,7 @@ html, body {
   padding-left: 2rem;
   padding-right: 2rem;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .plan-container {
@@ -1042,4 +1048,316 @@ html, body {
 /* Survival Plan - Red glow */
 .budget-option:nth-child(3):hover {
   box-shadow: 0 0 25px rgba(220, 53, 69, 0.4);
+}
+
+/* Budget Items Section Styles */
+.budget-items-section {
+  height: 100vh;
+  background-color: var(--background-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.budget-items-container {
+  max-width: 1400px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  gap: 6rem;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Left Column */
+.budget-items-left {
+  flex: 1;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Right Column */
+.budget-items-right {
+  flex: 1;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Row 1: Header */
+.budget-items-header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.budget-items-slogan {
+  font-size: 48px;
+  font-weight: bold;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  margin-bottom: 1rem;
+  line-height: 1.1;
+}
+
+.budget-items-sub-slogan {
+  font-size: 18px;
+  color: var(--secondary-color);
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.5;
+}
+
+/* Row 2: Summary and Circles */
+.budget-summary-row {
+  display: flex;
+  gap: 3rem;
+  align-items: center;
+  padding: 2rem;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.10) 15%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.06) 35%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.03) 65%,
+    rgba(255, 255, 255, 0.02) 75%,
+    rgba(255, 255, 255, 0.01) 85%,
+    transparent 100%
+  );
+  backdrop-filter: blur(60px);
+  border-radius: 20px;
+}
+
+.budget-summary-info {
+  flex: 1;
+}
+
+.budget-summary-info h3 {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  margin-bottom: 1rem;
+}
+
+.budget-summary-info p {
+  font-size: 16px;
+  color: var(--secondary-color);
+  font-family: 'Outfit', sans-serif;
+  margin-bottom: 0.5rem;
+}
+
+.percentage-circles {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.percentage-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.needs-circle {
+  background-color: var(--needs-color);
+}
+
+.savings-circle {
+  background-color: var(--savings-color);
+}
+
+.wants-circle {
+  background-color: var(--wants-color);
+}
+
+.circle-percentage {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+}
+
+.circle-label {
+  font-size: 12px;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+  margin-top: 0.25rem;
+}
+
+/* Row 3: Table */
+.budget-items-table {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.10) 15%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.06) 35%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.03) 65%,
+    rgba(255, 255, 255, 0.02) 75%,
+    rgba(255, 255, 255, 0.01) 85%,
+    transparent 100%
+  );
+  backdrop-filter: blur(60px);
+  border-radius: 20px;
+  padding: 2rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 1rem;
+}
+
+.header-item {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+}
+
+.table-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.table-cell {
+  font-size: 14px;
+  color: var(--prime-text-color);
+  font-family: 'Outfit', sans-serif;
+}
+
+.item-name {
+  font-weight: 600;
+}
+
+.item-amount {
+  text-align: right;
+}
+
+.item-percentage {
+  text-align: right;
+}
+
+/* Row 4: Actions */
+.budget-actions {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  padding: 2rem;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.10) 15%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.06) 35%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.03) 65%,
+    rgba(255, 255, 255, 0.02) 75%,
+    rgba(255, 255, 255, 0.01) 85%,
+    transparent 100%
+  );
+  backdrop-filter: blur(60px);
+  border-radius: 20px;
+}
+
+.view-report-btn, .auto-fix-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-report-btn {
+  background-color: var(--primary-color);
+  color: var(--background-color);
+}
+
+.view-report-btn:hover {
+  background-color: var(--secondary-color);
+  transform: scale(1.02);
+}
+
+.auto-fix-btn {
+  background-color: var(--savings-color);
+  color: var(--background-color);
+}
+
+.auto-fix-btn:hover {
+  opacity: 0.8;
+  transform: scale(1.02);
+}
+
+.allocation-message {
+  flex: 1;
+}
+
+.allocation-message p {
+  font-size: 14px;
+  color: var(--secondary-color);
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Back Button Styles */
+.back-btn {
+  background-color: var(--primary-color);
+  border: none;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0;
+  padding: 0.75rem 1.5rem;
+  width: 140px;
+  height: 50px;
+  flex-shrink: 0;
+}
+
+.back-btn:hover {
+  background-color: var(--secondary-color);
+  transform: scale(1.02);
+}
+
+.back-btn-text {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: 600;
+  font-family: 'Outfit', sans-serif;
+  transition: all 0.2s ease;
 }
