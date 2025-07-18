@@ -452,21 +452,14 @@ html, body {
   justify-content: center;
   margin-bottom: 1rem;
   padding: 1.5rem;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.10) 15%,
-    rgba(255, 255, 255, 0.08) 25%,
-    rgba(255, 255, 255, 0.06) 35%,
-    rgba(255, 255, 255, 0.04) 50%,
-    rgba(255, 255, 255, 0.03) 65%,
-    rgba(255, 255, 255, 0.02) 75%,
-    rgba(255, 255, 255, 0.01) 85%,
-    transparent 100%
-  );
+  background: linear-gradient(    180deg,    rgba(255, 255, 255, 0.12) 0%,    rgba(255, 255, 255, 0.10) 15%,    rgba(255, 255, 255, 0.08) 25%,    rgba(255, 255, 255, 0.06) 35%,    rgba(255, 255, 255, 0.04) 50%,    rgba(255, 255, 255, 0.03) 65%,    rgba(255, 255, 255, 0.02) 75%,    rgba(255, 255, 255, 0.01) 85%,    transparent 100%  );
   backdrop-filter: blur(60px);
-  border-radius: 20px;
+  border-radius: 10rem;
   box-shadow: 0 4px 32px rgba(0,0,0,0.10);
+  -webkit-border-radius: 10rem;
+  -moz-border-radius: 10rem;
+  -ms-border-radius: 10rem;
+  -o-border-radius: 10rem;
 }
 
 .income-label {
@@ -474,9 +467,9 @@ html, body {
   font-size: 24px;
   color: var(--prime-text-color);
   font-family: 'Outfit', sans-serif;
-  margin-bottom: 1rem;
-  margin-right: 2rem;
+  margin-right: 0;
   text-align: center;
+  width: 100%;
 }
 
 .income-input-container {
@@ -537,7 +530,6 @@ html, body {
 .budget-header-left {
   display: flex;
   align-items: center;
-  gap: 1rem;
 }
 
 .plan-info-header {
@@ -644,7 +636,7 @@ html, body {
 .budget-breakdown {
   display: flex;
   flex-direction: column;
-  gap: 3rem;
+  gap: 2rem;
 }
 
 .budget-item {
@@ -726,6 +718,21 @@ html, body {
   text-align: right;
   position: relative;
   z-index: 10;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  font-weight: 600;
+}
+
+.budget-item:nth-child(1) .budget-label {
+  background-color: var(--needs-color);
+}
+
+.budget-item:nth-child(2) .budget-label {
+  background-color: var(--savings-color);
+}
+
+.budget-item:nth-child(3) .budget-label {
+  background-color: var(--wants-color);
 }
 
 /* Budget Slider Styles */
