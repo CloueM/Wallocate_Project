@@ -64,17 +64,30 @@ const PlanSection: React.FC = () => {
     });
   };
 
-  const handlePercentageChange = (type: 'needs' | 'savings' | 'wants', value: number) => {
+  const handleSliderChange = (type: 'needs' | 'savings' | 'wants', value: number) => {
     const newPercentages = { ...customPercentages, [type]: value };
-    
-    // Ensure total doesn't exceed 100%
-    const total = Object.values(newPercentages).reduce((sum, val) => sum + val, 0);
-    if (total <= 100) {
-      setCustomPercentages(newPercentages);
-      // Update to custom plan when user adjusts
-      setSelectedPlan({ ...budgetPlans[0], ...newPercentages });
-    }
+    setCustomPercentages(newPercentages);
+    // Update to custom plan when user adjusts
+    setSelectedPlan({ 
+      name: "Custom Plan",
+      description: "Users with unique priorities who want full control.",
+      ...newPercentages 
+    });
   };
+
+  // Calculate total percentage
+  const totalPercentage = customPercentages.needs + customPercentages.savings + customPercentages.wants;
+  
+  // Determine indicator color based on total percentage
+  const getIndicatorColor = (total: number) => {
+    if (total > 100) return 'red';
+    if (total >= 75 && total <= 99) return 'orange';
+    if (total >= 0 && total <= 74) return 'blue';
+    if (total === 100) return 'green';
+    return 'blue'; // default
+  };
+
+  const indicatorColor = getIndicatorColor(totalPercentage);
 
   return (
     <section className="plan-section" id="plan">
@@ -139,7 +152,12 @@ const PlanSection: React.FC = () => {
 
           {/* Plan Details Section */}
           <div className="plan-details-container">
-            <h3 className="current-budget-title">Current Budget Style:</h3>
+            <div className="budget-title-container">
+              <h3 className="current-budget-title">Current Budget Style:</h3>
+              <div className={`percentage-indicator ${indicatorColor}`}>
+                {totalPercentage}%
+              </div>
+            </div>
             <div className="current-budget-content">
               <div className="current-budget-left">
                 
@@ -151,18 +169,45 @@ const PlanSection: React.FC = () => {
               <div className="current-budget-right">
                 <div className="budget-breakdown">
                   <div className="budget-item">
-                    <button className="edit-btn">Edit...</button>
-                    <div className="budget-percentage needs-bg">{customPercentages.needs}%</div>
+                    <div className="budget-percentage needs-bg">
+                      <span>{customPercentages.needs}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={customPercentages.needs}
+                      onChange={(e) => handleSliderChange('needs', parseInt(e.target.value))}
+                      className="budget-slider"
+                    />
                     <span className="budget-label">Needs</span>
                   </div>
                   <div className="budget-item">
-                    <button className="edit-btn">Edit...</button>
-                    <div className="budget-percentage savings-bg">{customPercentages.savings}%</div>
+                    <div className="budget-percentage savings-bg">
+                      <span>{customPercentages.savings}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={customPercentages.savings}
+                      onChange={(e) => handleSliderChange('savings', parseInt(e.target.value))}
+                      className="budget-slider"
+                    />
                     <span className="budget-label">Savings</span>
                   </div>
                   <div className="budget-item">
-                    <button className="edit-btn">Edit...</button>
-                    <div className="budget-percentage wants-bg">{customPercentages.wants}%</div>
+                    <div className="budget-percentage wants-bg">
+                      <span>{customPercentages.wants}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={customPercentages.wants}
+                      onChange={(e) => handleSliderChange('wants', parseInt(e.target.value))}
+                      className="budget-slider"
+                    />
                     <span className="budget-label">Wants</span>
                   </div>
                 </div>
