@@ -128,18 +128,41 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
 
 
   const handleAutoFix = () => {
-    // Auto-fix logic to adjust percentages to match the selected plan
-    const newItems = budgetItems.map(item => {
-      const targetPercentage = item.category === 'needs' ? customPercentages.needs :
-                              item.category === 'savings' ? customPercentages.savings :
-                              customPercentages.wants;
+    const totalIncome = parseInt(income);
+    const newItems = [...budgetItems];
+    
+    // Process each category separately
+    ['needs', 'savings', 'wants'].forEach(category => {
+      const categoryItems = newItems.filter(item => item.category === category);
+      const categoryPercentage = customPercentages[category as keyof typeof customPercentages];
+      const categoryBudget = calculatePercentageToDollar(categoryPercentage, totalIncome);
       
-      // Calculate new percentage based on category target
-      const categoryItems = budgetItems.filter(i => i.category === item.category);
-      const categoryTotal = categoryItems.reduce((sum, i) => sum + i.amount, 0);
-      const newPercentage = (item.amount / categoryTotal) * targetPercentage;
+      // Calculate current allocated amount in this category
+      const currentAllocated = categoryItems.reduce((sum, item) => sum + item.amount, 0);
       
-      return { ...item, percentage: Math.round(newPercentage * 10) / 10 };
+      // Find items with zero amounts in this category
+      const zeroItems = categoryItems.filter(item => item.amount === 0);
+      const nonZeroItems = categoryItems.filter(item => item.amount > 0);
+      
+      if (zeroItems.length > 0) {
+        // Calculate remaining budget to distribute
+        const remainingBudget = categoryBudget - currentAllocated;
+        
+        if (remainingBudget > 0) {
+          // Distribute remaining budget equally among zero items
+          const amountPerItem = remainingBudget / zeroItems.length;
+          
+          zeroItems.forEach(item => {
+            const itemIndex = newItems.findIndex(i => i.id === item.id);
+            if (itemIndex !== -1) {
+              newItems[itemIndex] = {
+                ...newItems[itemIndex],
+                amount: Math.round(amountPerItem * 100) / 100 // Round to 2 decimal places
+              };
+            }
+          });
+        }
+      }
     });
     
     setBudgetItems(newItems);
@@ -184,6 +207,215 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
     });
   };
 
+  // Calculate remaining amount that can be allocated
+  const getRemainingAmount = (): string => {
+    const currentCategory = circleOrder[0];
+    const totalIncome = parseInt(income);
+    const categoryPercentage = customPercentages[currentCategory as keyof typeof customPercentages];
+    const categoryAmount = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    
+    // Calculate total allocated amount for current category
+    const currentCategoryItems = getCurrentCategoryItems();
+    const allocatedAmount = currentCategoryItems.reduce((sum, item) => sum + item.amount, 0);
+    
+    const remainingAmount = categoryAmount - allocatedAmount;
+    return remainingAmount.toFixed(2);
+  };
+
+  // Calculate allocated percentage for current category
+  const getAllocatedPercentage = (): string => {
+    const currentCategory = circleOrder[0];
+    const totalIncome = parseInt(income);
+    const categoryPercentage = customPercentages[currentCategory as keyof typeof customPercentages];
+    const categoryAmount = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    
+    // Calculate total allocated amount for current category
+    const currentCategoryItems = getCurrentCategoryItems();
+    const allocatedAmount = currentCategoryItems.reduce((sum, item) => sum + item.amount, 0);
+    
+    if (categoryAmount === 0) return '0.00';
+    const allocatedPercentage = (allocatedAmount / categoryAmount) * 100;
+    return allocatedPercentage.toFixed(2);
+  };
+
+  // Get category status (under/over/perfect budget)
+  const getCategoryStatus = (category: 'needs' | 'savings' | 'wants'): { status: string; color: string } => {
+    const totalIncome = parseInt(income);
+    const categoryPercentage = customPercentages[category];
+    const categoryAmount = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    const categoryItems = budgetItems.filter(item => item.category === category);
+    const allocatedAmount = categoryItems.reduce((sum, item) => sum + item.amount, 0);
+    
+    if (categoryAmount === 0) return { status: 'No Budget', color: 'gray' };
+    
+    const percentage = (allocatedAmount / categoryAmount) * 100;
+    
+    if (percentage > 105) return { status: 'Over Budget', color: 'red' };
+    if (percentage < 95) return { status: 'Under Budget', color: 'blue' };
+    return { status: 'Perfect Budget', color: 'green' };
+  };
+
+  // Check if any category is over budget
+  const hasOverBudgetCategory = (): boolean => {
+    return ['needs', 'savings', 'wants'].some(category => 
+      getCategoryStatus(category as 'needs' | 'savings' | 'wants').color === 'red'
+    );
+  };
+
+  // Check if any category is empty (no items)
+  const hasEmptyCategory = (): boolean => {
+    return ['needs', 'savings', 'wants'].some(category => 
+      getCategoryItemsCount(category as 'needs' | 'savings' | 'wants') === 0
+    );
+  };
+
+  // Check if report can be viewed (no over budget and no empty categories)
+  const canViewReport = (): boolean => {
+    return !hasOverBudgetCategory() && !hasEmptyCategory();
+  };
+
+  // Get over budget categories for display
+  const getOverBudgetCategories = (): string[] => {
+    return ['needs', 'savings', 'wants'].filter(category => 
+      getCategoryStatus(category as 'needs' | 'savings' | 'wants').color === 'red'
+    );
+  };
+
+  // Get empty categories for display
+  const getEmptyCategories = (): string[] => {
+    return ['needs', 'savings', 'wants'].filter(category => 
+      getCategoryItemsCount(category as 'needs' | 'savings' | 'wants') === 0
+    );
+  };
+
+  // Get items count for a category
+  const getCategoryItemsCount = (category: 'needs' | 'savings' | 'wants'): number => {
+    return budgetItems.filter(item => item.category === category).length;
+  };
+
+  // Get largest item for a category
+  const getLargestItem = (category: 'needs' | 'savings' | 'wants'): { name: string; amount: number } | null => {
+    const categoryItems = budgetItems.filter(item => item.category === category);
+    if (categoryItems.length === 0) return null;
+    
+    const largest = categoryItems.reduce((max, item) => item.amount > max.amount ? item : max);
+    return { name: largest.name, amount: largest.amount };
+  };
+
+  // Get average item cost for a category
+  const getAverageItemCost = (category: 'needs' | 'savings' | 'wants'): number => {
+    const categoryItems = budgetItems.filter(item => item.category === category);
+    if (categoryItems.length === 0) return 0;
+    
+    const totalAmount = categoryItems.reduce((sum, item) => sum + item.amount, 0);
+    return totalAmount / categoryItems.length;
+  };
+
+  // Generate smart tips based on user's budget data
+  const getSmartTip = (): { title: string; text: string } => {
+    const currentCategory = circleOrder[0];
+    const currentItems = getCurrentCategoryItems();
+    const totalIncome = parseInt(income);
+    const categoryPercentage = customPercentages[currentCategory as keyof typeof customPercentages];
+    const categoryAmount = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    const allocatedAmount = currentItems.reduce((sum, item) => sum + item.amount, 0);
+    const allocatedPercentage = parseFloat(getAllocatedPercentage());
+
+    // Analyze spending patterns
+    const hasHighValueItems = currentItems.some(item => item.amount > categoryAmount * 0.3);
+    const hasManyItems = currentItems.length > 5;
+    const isOverBudget = allocatedPercentage > 100;
+    const isUnderBudget = allocatedPercentage < 50;
+    const hasZeroItems = currentItems.length === 0;
+    const biggestItem = currentItems.reduce((max, item) => item.amount > max.amount ? item : max, { name: '', amount: 0 });
+
+    if (currentCategory === 'needs') {
+      if (hasZeroItems) {
+        return {
+          title: "🏠 Hey there! Let's get started",
+          text: "I see you haven't added any essential expenses yet. Let's start with the basics - add your rent/mortgage, utilities, groceries, and insurance. These are your foundation for financial stability."
+        };
+      }
+      if (hasHighValueItems) {
+        return {
+          title: "💰 I noticed something important",
+          text: `Your "${biggestItem.name}" is taking up ${((biggestItem.amount / categoryAmount) * 100).toFixed(1)}% of your needs budget. That's quite significant! Have you considered negotiating this expense or looking for alternatives?`
+        };
+      }
+      if (isOverBudget) {
+        return {
+          title: "⚠️ We need to talk about your needs budget",
+          text: `You're currently ${(allocatedPercentage - 100).toFixed(1)}% over your needs budget. I see you have ${currentItems.length} essential expenses totaling $${allocatedAmount.toFixed(2)}. Which of these could we potentially reduce or optimize?`
+        };
+      }
+      if (isUnderBudget) {
+        return {
+          title: "✅ You're doing great with your essentials!",
+          text: `You're only using ${allocatedPercentage.toFixed(1)}% of your needs budget - that's excellent! You have $${(categoryAmount - allocatedAmount).toFixed(2)} left. Maybe we could move some of this to your savings or wants?`
+        };
+      }
+      return {
+        title: "📊 Your needs are well balanced",
+        text: `You have ${currentItems.length} essential expenses totaling $${allocatedAmount.toFixed(2)}, which is ${allocatedPercentage.toFixed(1)}% of your budget. This looks really good! Consider setting up automatic payments to avoid any late fees.`
+      };
+    }
+
+    if (currentCategory === 'savings') {
+      if (hasZeroItems) {
+        return {
+          title: "💎 Ready to start building your future?",
+          text: `You have $${categoryAmount.toFixed(2)} available for savings but haven't added anything yet. Even starting with $100 for an emergency fund makes a huge difference. What's your first savings goal?`
+        };
+      }
+      if (allocatedPercentage < 50) {
+        return {
+          title: "🎯 Let's boost your savings game",
+          text: `You're only using ${allocatedPercentage.toFixed(1)}% of your savings budget. You have $${(categoryAmount - allocatedAmount).toFixed(2)} left to allocate! What about increasing your emergency fund or adding a retirement contribution?`
+        };
+      }
+      if (hasManyItems) {
+        return {
+          title: "🎯 Wow, you're really diversifying!",
+          text: `You have ${currentItems.length} different savings goals - that's impressive! You've allocated $${allocatedAmount.toFixed(2)} total. Which of these goals is most urgent? Maybe we should prioritize by timeline.`
+        };
+      }
+      return {
+        title: "💰 Your savings strategy looks solid",
+        text: `You've allocated $${allocatedAmount.toFixed(2)} across ${currentItems.length} savings goals, using ${allocatedPercentage.toFixed(1)}% of your budget. Remember the order: emergency fund first, then retirement, then specific goals.`
+      };
+    }
+
+    if (currentCategory === 'wants') {
+      if (hasZeroItems) {
+        return {
+          title: "🎉 Time to treat yourself!",
+          text: `You have $${categoryAmount.toFixed(2)} available for wants but haven't added anything yet. What brings you joy? Maybe dining out, entertainment, or a personal treat? Life isn't just about saving - it's about enjoying too!`
+        };
+      }
+      if (isOverBudget) {
+        return {
+          title: "🎭 Let's check your wants spending",
+          text: `You're ${(allocatedPercentage - 100).toFixed(1)}% over your wants budget with $${allocatedAmount.toFixed(2)} allocated. I see you have ${currentItems.length} items. Which of these brings you the most happiness? Maybe we can prioritize the ones that matter most.`
+        };
+      }
+      if (hasHighValueItems) {
+        return {
+          title: "💎 That's quite a luxury item!",
+          text: `Your "${biggestItem.name}" at $${biggestItem.amount.toFixed(2)} is a significant want purchase. That's ${((biggestItem.amount / categoryAmount) * 100).toFixed(1)}% of your wants budget! Are you sure this aligns with your long-term financial goals?`
+        };
+      }
+      return {
+        title: "🎯 You have great self-control!",
+        text: `You're using ${allocatedPercentage.toFixed(1)}% of your wants budget with $${allocatedAmount.toFixed(2)} across ${currentItems.length} items. That's a really healthy balance! You still have $${(categoryAmount - allocatedAmount).toFixed(2)} left for more treats.`
+      };
+    }
+
+    return {
+      title: "💡 Keep up the great work!",
+      text: "You're building excellent financial habits by tracking your expenses. Every budget entry brings you closer to your financial goals!"
+    };
+  };
+
   // Handle item name update
   const handleItemNameChange = (id: number, name: string) => {
     setBudgetItems(prev => prev.map(item => 
@@ -203,6 +435,7 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
 
   // Handle empty row input changes
   const [emptyRowData, setEmptyRowData] = useState({ name: '', amount: 0 });
+  const [userInput, setUserInput] = useState('');
 
   const handleEmptyRowNameChange = (name: string) => {
     setEmptyRowData(prev => ({ ...prev, name }));
@@ -374,130 +607,112 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
             </div>
           </div>
 
-          {/* Plan Details Section */}
+          {/* Information System */}
           <div className="plan-details-container">
-            <div className="budget-header-container">
-              <div className="budget-header-left">
-                <h3 className="current-budget-title">Current Budget Style:</h3>
-                <div className="plan-info-header">
-                  <h4 className="plan-name">{selectedPlan.name}</h4>
-                  <p className="plan-description">{selectedPlan.description}</p>
-                </div>
-              </div>
-              <div className="budget-header-right">
-                <button 
-                  className="back-btn"
-                  onClick={() => {
-                    // Enable scrolling temporarily
-                    document.body.style.overflow = 'auto';
-                    document.documentElement.style.overflow = 'auto';
-                    
-                    // Scroll back to plan section
-                    const planSection = document.getElementById('plan');
-                    if (planSection) {
-                      planSection.scrollIntoView({ behavior: 'smooth' });
-                    }
-                    
-                    // Re-disable scrolling after animation
-                    setTimeout(() => {
-                      document.body.style.overflow = 'hidden';
-                      document.documentElement.style.overflow = 'hidden';
-                    }, 1000);
-                  }}
-                >
-                  <span className="back-btn-text">Back</span>
-                </button>
-              </div>
+            <div className="info-header">
+              <h3 className="info-title">Budget Overview</h3>
+              <button 
+                className="back-btn"
+                onClick={() => {
+                  document.body.style.overflow = 'auto';
+                  document.documentElement.style.overflow = 'auto';
+                  const planSection = document.getElementById('plan');
+                  if (planSection) {
+                    planSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                  setTimeout(() => {
+                    document.body.style.overflow = 'hidden';
+                    document.documentElement.style.overflow = 'hidden';
+                  }, 1000);
+                }}
+              >
+                <span className="back-btn-text">Back</span>
+              </button>
             </div>
-            <div className="current-budget-content">
-              <div className="current-budget-left">
-                <div className="budget-style-icon">
-                  {selectedPlan.name === "Custom Plan" && (
-                    <img src="/images/icons/custom-plan.png" alt="Custom Plan" className="icon" />
-                  )}
-                  {selectedPlan.name === "Saver's Plan" && (
-                    <img src="/images/icons/savers-plan.png" alt="Saver's Plan" className="icon" />
-                  )}
-                  {selectedPlan.name === "Minimalist Plan" && (
-                    <img src="/images/icons/minimalist-plan.png" alt="Minimalist Plan" className="icon" />
-                  )}
-                  {selectedPlan.name === "Survival Plan" && (
-                    <img src="/images/icons/survival-plan.png" alt="Survival Plan" className="icon" />
-                  )}
-                  {selectedPlan.name === "Standard Plan" && (
-                    <img src="/images/icons/standard-plan.png" alt="Standard Plan" className="icon" />
-                  )}
+
+            {/* Status Section */}
+            <div className="info-section">
+              <h4 className="section-title">Status</h4>
+              <div className="status-grid">
+                <div className={`status-box ${getCategoryStatus('needs').color}`}>
+                  <span className="status-category">Needs</span>
+                  <span className="status-text">{getCategoryStatus('needs').status}</span>
                 </div>
-              </div>
-              <div className="current-budget-right">
-                <div className="budget-breakdown">
-                  <div className="budget-item">
-                    <div className="budget-slider-container">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={customPercentages.needs}
-                        disabled
-                        className="budget-slider"
-                        data-type="needs"
-                      />
-                      <div className="slider-percentage" data-type="needs">
-                        <span>{customPercentages.needs}%</span>
-                      </div>
-                    </div>
-                    <span className="budget-label">Needs</span>
-                  </div>
-                  <div className="budget-item">
-                    <div className="budget-slider-container">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={customPercentages.savings}
-                        disabled
-                        className="budget-slider"
-                        data-type="savings"
-                      />
-                      <div className="slider-percentage" data-type="savings">
-                        <span>{customPercentages.savings}%</span>
-                      </div>
-                    </div>
-                    <span className="budget-label">Savings</span>
-                  </div>
-                  <div className="budget-item">
-                    <div className="budget-slider-container">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={customPercentages.wants}
-                        disabled
-                        className="budget-slider"
-                        data-type="wants"
-                      />
-                      <div className="slider-percentage" data-type="wants">
-                        <span>{customPercentages.wants}%</span>
-                      </div>
-                    </div>
-                    <span className="budget-label">Wants</span>
-                  </div>
+                <div className={`status-box ${getCategoryStatus('savings').color}`}>
+                  <span className="status-category">Savings</span>
+                  <span className="status-text">{getCategoryStatus('savings').status}</span>
+                </div>
+                <div className={`status-box ${getCategoryStatus('wants').color}`}>
+                  <span className="status-category">Wants</span>
+                  <span className="status-text">{getCategoryStatus('wants').status}</span>
                 </div>
               </div>
             </div>
-            <div className="budget-options">
-              <h3 className="options-title">Choose a Budgeting Style</h3>
-              <div className="budget-grid">
-                {budgetPlans.slice(1).map((plan, index) => (
-                  <div 
-                    key={plan.name}
-                    className={`budget-option ${selectedPlan.name === plan.name ? 'selected' : ''}`}
-                    style={{ pointerEvents: 'none', opacity: 0.6 }}
-                  >
-                    <h4 className="option-name">{plan.name}</h4>
-                    <p className="option-description">{plan.description}</p>
-                  </div>
-                ))}
+
+            {/* Items Added Section */}
+            <div className="info-section">
+              <h4 className="section-title">Items Added</h4>
+              <div className="items-grid">
+                <div className="items-box needs">
+                  <span className="items-category">Needs</span>
+                  <span className="items-count">{getCategoryItemsCount('needs')}</span>
+                </div>
+                <div className="items-box savings">
+                  <span className="items-category">Savings</span>
+                  <span className="items-count">{getCategoryItemsCount('savings')}</span>
+                </div>
+                <div className="items-box wants">
+                  <span className="items-category">Wants</span>
+                  <span className="items-count">{getCategoryItemsCount('wants')}</span>
+                </div>
+                <div className="items-box total">
+                  <span className="items-category">Total</span>
+                  <span className="items-count">{budgetItems.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Largest Single Item Section */}
+            <div className="info-section">
+              <h4 className="section-title">Largest Single Item</h4>
+              <div className="largest-items-grid">
+                {(['needs', 'savings', 'wants'] as const).map(category => {
+                  const largestItem = getLargestItem(category);
+                  return (
+                    <div key={category} className="largest-item-box">
+                      <span className="largest-category">{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                      {largestItem ? (
+                        <div className="largest-item-info">
+                          <span className="largest-item-name">👑 {largestItem.name}</span>
+                          <span className="largest-item-amount">${largestItem.amount.toFixed(2)}</span>
+                        </div>
+                      ) : (
+                        <span className="no-items">No items added</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Average Item Cost Section */}
+            <div className="info-section">
+              <h4 className="section-title">Average Item Cost</h4>
+              <div className="average-grid">
+                {(['needs', 'savings', 'wants'] as const).map(category => {
+                  const average = getAverageItemCost(category);
+                  const itemCount = getCategoryItemsCount(category);
+                  return (
+                    <div key={category} className="average-box">
+                      <span className="average-category">{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                      {itemCount > 0 ? (
+                        <span className="average-amount">${average.toFixed(2)}</span>
+                      ) : (
+                        <span className="no-items">No items</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -573,7 +788,7 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
                         onClick={() => handleCheckMarkClick(item.id)}
                         title="Edit item"
                       >
-                        ✏️
+                        <img src="/images/icons/edit-mark.png" alt="Edit" className="action-icon-img" />
                       </button>
                     ) : (
                       <>
@@ -582,14 +797,14 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
                           onClick={() => handleCheckMarkClick(item.id)}
                           title="Lock item"
                         >
-                          ✓
+                          <img src="/images/icons/check-mark.png" alt="Lock" className="action-icon-img" />
                         </button>
                         <button
                           className="action-icon x-icon"
                           onClick={() => handleXMarkClick(item.id)}
                           title="Delete item"
                         >
-                          ✕
+                          <img src="/images/icons/cross-mark.png" alt="Delete" className="action-icon-img" />
                         </button>
                       </>
                     )}
@@ -634,14 +849,14 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
                     title="Add item"
                     disabled={!emptyRowData.name.trim() && emptyRowData.amount <= 0}
                   >
-                    ✓
+                    <img src="/images/icons/check-mark.png" alt="Add" className="action-icon-img" />
                   </button>
                   <button
                     className="action-icon x-icon"
                     onClick={handleClearEmptyRow}
                     title="Clear inputs"
                   >
-                    ✕
+                    <img src="/images/icons/cross-mark.png" alt="Clear" className="action-icon-img" />
                   </button>
                 </div>
                 <div className="table-cell item-name">
@@ -676,16 +891,73 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
             </div>
           </div>
 
-          {/* Row 4: Action Buttons and Message */}
-          <div className="budget-actions">
-            <button className="view-report-btn">View Report</button>
-            <button className="auto-fix-btn" onClick={handleAutoFix}>Auto Fix</button>
-            <div className="allocation-message">
-              <p>Your budget allocation shows {totalPercentage}% of your income is allocated. 
-              {totalPercentage > 100 ? ` You are ${totalPercentage - 100}% over budget.` : 
-               totalPercentage < 100 ? ` You have ${100 - totalPercentage}% remaining to allocate.` : 
-               ' Your budget is perfectly balanced!'}</p>
+          {/* Row 4: Allocation Info */}
+          <div className="budget-allocation-row">
+            <div className="allocation-left">
+              <div className="allocation-tip">
+                <h4 className="tip-title">{getSmartTip().title}</h4>
+                <p className="tip-text">
+                  {getSmartTip().text}
+                </p>
+              </div>
             </div>
+            <div className="allocation-right">
+              <div className="allocation-info-box">
+                <h4 className="allocation-info-title">Remaining to Allocate</h4>
+                <div className="allocation-info-value">
+                  ${getRemainingAmount()}
+                </div>
+              </div>
+              <div className="allocation-info-box">
+                <h4 className="allocation-info-title">Allocated Percentage</h4>
+                <div className="allocation-info-value">
+                  {getAllocatedPercentage()}%
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 5: Action Buttons */}
+          <div className="budget-actions">
+            <div className="action-buttons-container">
+              <button 
+                className={`view-report-btn ${!canViewReport() ? 'disabled' : ''}`}
+                disabled={!canViewReport()}
+                title={!canViewReport() ? 'Complete your budget setup first' : 'View your budget report'}
+              >
+                <span className="btn-icon">📊</span>
+                <span className="btn-text">View Report</span>
+              </button>
+              <button className="optimize-btn" onClick={handleAutoFix}>
+                <span className="btn-icon">✨</span>
+                <span className="btn-text">Optimize Budget</span>
+              </button>
+            </div>
+            {!canViewReport() && (
+              <div className="budget-warning">
+                <span className="warning-icon">⚠️</span>
+                <div className="warning-content">
+                  {hasOverBudgetCategory() && (
+                    <p className="warning-text">
+                      Cannot view report: {getOverBudgetCategories().map(cat => cat.charAt(0).toUpperCase() + cat.slice(1)).join(', ')} {getOverBudgetCategories().length === 1 ? 'is' : 'are'} over budget.
+                    </p>
+                  )}
+                  {hasEmptyCategory() && (
+                    <p className="warning-text">
+                      Cannot view report: {getEmptyCategories().map(cat => cat.charAt(0).toUpperCase() + cat.slice(1)).join(', ')} {getEmptyCategories().length === 1 ? 'has' : 'have'} no items added.
+                    </p>
+                  )}
+                  <p className="warning-suggestion">
+                    {hasOverBudgetCategory() && hasEmptyCategory() 
+                      ? "Click \"Optimize Budget\" to automatically fill empty categories and balance over-budget items."
+                      : hasOverBudgetCategory()
+                      ? "Click \"Optimize Budget\" to automatically adjust your allocations and balance your budget."
+                      : "Add items to empty categories."
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
