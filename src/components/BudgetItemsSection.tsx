@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { gsap } from 'gsap';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface BudgetItem {
   id: number;
@@ -73,19 +74,15 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
   setCustomPercentages,
   income
 }) => {
-  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([
-    { id: 1, name: "Rent/Mortgage", amount: 1200, percentage: 35, category: 'needs' },
-    { id: 2, name: "Utilities", amount: 300, percentage: 9, category: 'needs' },
-    { id: 3, name: "Groceries", amount: 400, percentage: 11, category: 'needs' },
-    { id: 4, name: "Emergency Fund", amount: 500, percentage: 14, category: 'savings' },
-    { id: 5, name: "Retirement", amount: 300, percentage: 9, category: 'savings' },
-    { id: 6, name: "Entertainment", amount: 200, percentage: 6, category: 'wants' },
-    { id: 7, name: "Dining Out", amount: 150, percentage: 4, category: 'wants' },
-    { id: 8, name: "Shopping", amount: 100, percentage: 3, category: 'wants' },
-  ]);
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
+  const [lockedItems, setLockedItems] = useState<Set<number>>(new Set());
 
   const [totalAmount, setTotalAmount] = useState(0);
   const [totalPercentage, setTotalPercentage] = useState(0);
+  const [circleOrder, setCircleOrder] = useState(['needs', 'savings', 'wants']);
+  const circleRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const budgetSummaryInfoRef = useRef<HTMLDivElement>(null);
+  const isInitialRender = useRef(true);
 
   useEffect(() => {
     const amount = budgetItems.reduce((sum, item) => sum + item.amount, 0);
@@ -93,6 +90,42 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
     setTotalAmount(amount);
     setTotalPercentage(percentage);
   }, [budgetItems]);
+
+  // Set initial positions and animate circles when order changes
+  useEffect(() => {
+    const circles = circleOrder.map(category => circleRefs.current[category]).filter(Boolean);
+    
+    if (circles.length > 0) {
+      // Calculate the target positions for each circle
+      const circleWidth = 80; // Width of each circle (5rem = 80px)
+      const gap = 24; // Gap between circles (1.5rem = 24px)
+      
+      circles.forEach((circle, index) => {
+        if (!circle) return;
+        
+        const targetX = index * (circleWidth + gap);
+        
+        if (isInitialRender.current) {
+          // Set initial position without animation
+          gsap.set(circle, { x: targetX });
+        } else {
+          // Animate to new position
+          gsap.to(circle, {
+            x: targetX,
+            duration: 0.1,
+            ease: "power2.out"
+          });
+        }
+      });
+      
+      // Mark initial render as complete
+      if (isInitialRender.current) {
+        isInitialRender.current = false;
+      }
+    }
+  }, [circleOrder]);
+
+
 
   const handleAutoFix = () => {
     // Auto-fix logic to adjust percentages to match the selected plan
@@ -118,6 +151,207 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
       case 'savings': return 'var(--savings-color)';
       case 'wants': return 'var(--wants-color)';
       default: return 'var(--secondary-color)';
+    }
+  };
+
+  // Recursive function to calculate percentage to dollar amount
+  const calculatePercentageToDollar = (percentage: number, totalIncome: number, precision: number = 2): number => {
+    if (precision <= 0) {
+      return Math.round((percentage / 100) * totalIncome);
+    }
+    return Math.round((percentage / 100) * totalIncome * Math.pow(10, precision)) / Math.pow(10, precision);
+  };
+
+  // Recursive function to calculate dollar amount to percentage
+  const calculateDollarToPercentage = (dollarAmount: number, totalIncome: number, precision: number = 2): number => {
+    if (precision <= 0) {
+      return Math.round((dollarAmount / totalIncome) * 100);
+    }
+    return Math.round((dollarAmount / totalIncome) * 100 * Math.pow(10, precision)) / Math.pow(10, precision);
+  };
+
+  // Get the current category's dollar amount
+  const getCurrentCategoryAmount = (): string => {
+    const currentCategory = circleOrder[0];
+    const percentage = customPercentages[currentCategory as keyof typeof customPercentages];
+    const totalIncome = parseInt(income);
+    const dollarAmount = calculatePercentageToDollar(percentage, totalIncome);
+    return dollarAmount.toLocaleString('en-US', { 
+      style: 'currency', 
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // Handle item name update
+  const handleItemNameChange = (id: number, name: string) => {
+    setBudgetItems(prev => prev.map(item => 
+      item.id === id ? { ...item, name } : item
+    ));
+  };
+
+  // Handle item amount update
+  const handleItemAmountChange = (id: number, amount: number) => {
+    // Only allow non-negative amounts
+    if (amount >= 0) {
+      setBudgetItems(prev => prev.map(item => 
+        item.id === id ? { ...item, amount } : item
+      ));
+    }
+  };
+
+  // Handle empty row input changes
+  const [emptyRowData, setEmptyRowData] = useState({ name: '', amount: 0 });
+
+  const handleEmptyRowNameChange = (name: string) => {
+    setEmptyRowData(prev => ({ ...prev, name }));
+  };
+
+  const handleEmptyRowAmountChange = (amount: number) => {
+    // Only allow amount input if item name is provided and amount is not negative
+    if (emptyRowData.name.trim() && amount >= 0) {
+      setEmptyRowData(prev => ({ ...prev, amount }));
+    }
+  };
+
+  // Add item when check mark is clicked
+  const handleAddItem = () => {
+    if (emptyRowData.name.trim() || emptyRowData.amount > 0) {
+      const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+      const newItem: BudgetItem = {
+        id: Date.now(),
+        name: emptyRowData.name.trim(),
+        amount: emptyRowData.amount,
+        percentage: 0,
+        category: currentCategory
+      };
+      setBudgetItems(prev => [...prev, newItem]);
+      setEmptyRowData({ name: '', amount: 0 }); // Clear the empty row
+      // Lock the newly added item
+      setLockedItems(prev => new Set([...prev, newItem.id]));
+    }
+  };
+
+  // Clear empty row when X is clicked
+  const handleClearEmptyRow = () => {
+    setEmptyRowData({ name: '', amount: 0 });
+  };
+
+  // Handle check mark click (lock/unlock item)
+  const handleCheckMarkClick = (id: number) => {
+    setLockedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id); // Unlock
+      } else {
+        newSet.add(id); // Lock
+      }
+      return newSet;
+    });
+  };
+
+  // Handle X mark click (clear item)
+  const handleXMarkClick = (id: number) => {
+    setBudgetItems(prev => prev.filter(item => item.id !== id));
+    setLockedItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(id);
+      return newSet;
+    });
+  };
+
+  // Calculate percentage for an item based on current category total
+  const calculateItemPercentage = (item: BudgetItem): number => {
+    const currentCategory = circleOrder[0];
+    if (item.category !== currentCategory || item.amount === 0) {
+      return 0;
+    }
+    
+    // Get the category's total allocated amount from income
+    const totalIncome = parseInt(income);
+    const categoryPercentage = customPercentages[currentCategory as keyof typeof customPercentages];
+    const categoryTotalAmount = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    
+    if (categoryTotalAmount === 0) return 0;
+    
+    return Math.round((item.amount / categoryTotalAmount) * 100 * 100) / 100; // Round to 2 decimal places
+  };
+
+  // Get items for current category
+  const getCurrentCategoryItems = (): BudgetItem[] => {
+    const currentCategory = circleOrder[0];
+    return budgetItems.filter(item => item.category === currentCategory);
+  };
+
+  // Add new item when user starts typing
+  const addNewItem = () => {
+    const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+    const newItem: BudgetItem = {
+      id: Date.now(),
+      name: "",
+      amount: 0,
+      percentage: 0,
+      category: currentCategory
+    };
+    setBudgetItems(prev => [...prev, newItem]);
+  };
+
+  const handleCircleClick = (category: string) => {
+    const newOrder = [...circleOrder];
+    const clickedIndex = newOrder.indexOf(category);
+    const firstIndex = 0;
+    
+    // Start both animations immediately
+    const clickedCircle = circleRefs.current[category];
+    const budgetSummaryInfo = budgetSummaryInfoRef.current;
+    
+    if (clickedCircle) {
+      gsap.to(clickedCircle, {
+        scale: 1.15,
+        duration: 0.1,
+        ease: "back.out(1.7)",
+        onComplete: () => {
+          gsap.to(clickedCircle, {
+            scale: 1,
+            duration: 0.01,
+            ease: "power2.out"
+          });
+        }
+      });
+    }
+    
+    if (budgetSummaryInfo) {
+      // Fade out and slide to the right
+      gsap.to(budgetSummaryInfo, {
+        opacity: 0,
+        x: 30,
+        duration: 0.3,
+        ease: "power2.out",
+        onComplete: () => {
+          // Swap the clicked circle with the first position
+          [newOrder[firstIndex], newOrder[clickedIndex]] = [newOrder[clickedIndex], newOrder[firstIndex]];
+          setCircleOrder(newOrder);
+          
+          // Fade in and slide from the left
+          gsap.fromTo(budgetSummaryInfo, 
+            {
+              opacity: 0,
+              x: -30
+            },
+            {
+              opacity: 1,
+              x: 0,
+              duration: 0.4,
+              ease: "power2.out"
+            }
+          );
+        }
+      });
+    } else {
+      // Fallback if element not found
+      [newOrder[firstIndex], newOrder[clickedIndex]] = [newOrder[clickedIndex], newOrder[firstIndex]];
+      setCircleOrder(newOrder);
     }
   };
 
@@ -279,45 +513,166 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = ({
 
           {/* Row 2: Information and Percentage Circles */}
           <div className="budget-summary-row">
-            <div className="budget-summary-info">
-              <h3>Budget Summary</h3>
-              <p>Total Income: ${income}</p>
-              <p>Total Allocated: ${totalAmount}</p>
-              <p>Remaining: ${parseInt(income) - totalAmount}</p>
+            <div 
+              ref={budgetSummaryInfoRef}
+              className={`budget-summary-info ${circleOrder[0]}-active`}
+            >
+              <div className="budget-summary-header">
+                <h3 className="budget-summary-title">{circleOrder[0].charAt(0).toUpperCase() + circleOrder[0].slice(1)}</h3>
+                <div 
+                  className="budget-amount-box"
+                  style={{ 
+                    backgroundColor: `${getCategoryColor(circleOrder[0])}20`,
+                    borderColor: getCategoryColor(circleOrder[0])
+                  }}
+                >
+                  <span className="budget-amount">{getCurrentCategoryAmount()}</span>
+                </div>
+              </div>
+              <p className="budget-summary-description">
+                {circleOrder[0] === 'needs' && "List your essential costs—housing, groceries, utilities, insurance, and other must‑pay bills."}
+                {circleOrder[0] === 'savings' && "Allocate funds for future security and goals, from an emergency cushion to long‑term investments."}
+                {circleOrder[0] === 'wants' && "Set aside an amount for lifestyle extras like dining, entertainment, shopping, and hobbies."}
+              </p>
             </div>
             <div className="percentage-circles">
-              <div className="percentage-circle needs-circle">
-                <span className="circle-percentage">{customPercentages.needs}%</span>
-                <span className="circle-label">Needs</span>
-              </div>
-              <div className="percentage-circle savings-circle">
-                <span className="circle-percentage">{customPercentages.savings}%</span>
-                <span className="circle-label">Savings</span>
-              </div>
-              <div className="percentage-circle wants-circle">
-                <span className="circle-percentage">{customPercentages.wants}%</span>
-                <span className="circle-label">Wants</span>
-              </div>
+              {circleOrder.map((category, index) => (
+                <div 
+                  key={category}
+                  ref={(el) => { circleRefs.current[category] = el; }}
+                  className={`percentage-circle ${category}-circle`}
+                  onClick={index === 0 ? undefined : () => handleCircleClick(category)}
+                  style={{ 
+                    cursor: index === 0 ? 'default' : 'pointer',
+                    
+                  }}
+                >
+                  <span className="circle-percentage">{customPercentages[category as keyof typeof customPercentages]}%</span>
+                  <span className="circle-label">{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Row 3: Budget Items Table */}
           <div className="budget-items-table">
             <div className="table-header">
+              <div className="header-item">Actions</div>
               <div className="header-item">Items</div>
               <div className="header-item">Amount</div>
               <div className="header-item">Percent</div>
             </div>
             <div className="table-content">
-              {budgetItems.map((item) => (
+              {/* Show existing items */}
+              {getCurrentCategoryItems().map((item) => (
                 <div key={item.id} className="table-row">
-                  <div className="table-cell item-name" style={{ color: getCategoryColor(item.category) }}>
-                    {item.name}
+                  <div className="table-cell table-actions-cell">
+                    {lockedItems.has(item.id) ? (
+                      <button
+                        className="action-icon edit-icon"
+                        onClick={() => handleCheckMarkClick(item.id)}
+                        title="Edit item"
+                      >
+                        ✏️
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="action-icon check-icon"
+                          onClick={() => handleCheckMarkClick(item.id)}
+                          title="Lock item"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="action-icon x-icon"
+                          onClick={() => handleXMarkClick(item.id)}
+                          title="Delete item"
+                        >
+                          ✕
+                        </button>
+                      </>
+                    )}
                   </div>
-                  <div className="table-cell item-amount">${item.amount}</div>
-                  <div className="table-cell item-percentage">{item.percentage}%</div>
+                  <div className="table-cell item-name">
+                    <input
+                      type="text"
+                      value={item.name}
+                      onChange={(e) => handleItemNameChange(item.id, e.target.value)}
+                      placeholder="Enter item name..."
+                      className={`item-name-input ${lockedItems.has(item.id) ? 'locked-input' : ''}`}
+                      style={{ color: getCategoryColor(item.category) }}
+                      disabled={lockedItems.has(item.id)}
+                    />
+                  </div>
+                  <div className="table-cell item-amount">
+                    <div className="amount-input-container">
+                      <span className="dollar-sign">$</span>
+                      <input
+                        type="number"
+                        value={item.amount || ''}
+                        onChange={(e) => handleItemAmountChange(item.id, parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                        className={`item-amount-input ${lockedItems.has(item.id) ? 'locked-input' : ''}`}
+                        disabled={lockedItems.has(item.id)}
+                      />
+                    </div>
+                  </div>
+                  <div className="table-cell item-percentage">
+                    {calculateItemPercentage(item).toFixed(2)}%
+                  </div>
                 </div>
               ))}
+              {/* Always show an empty input row */}
+              <div className="table-row input-row">
+                <div className="table-cell table-actions-cell">
+                  <button
+                    className="action-icon check-icon"
+                    onClick={handleAddItem}
+                    title="Add item"
+                    disabled={!emptyRowData.name.trim() && emptyRowData.amount <= 0}
+                  >
+                    ✓
+                  </button>
+                  <button
+                    className="action-icon x-icon"
+                    onClick={handleClearEmptyRow}
+                    title="Clear inputs"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="table-cell item-name">
+                  <input
+                    type="text"
+                    value={emptyRowData.name}
+                    onChange={(e) => handleEmptyRowNameChange(e.target.value)}
+                    placeholder="Enter item name..."
+                    className="item-name-input"
+                    style={{ color: getCategoryColor(circleOrder[0] as 'needs' | 'savings' | 'wants') }}
+                  />
+                </div>
+                <div className="table-cell item-amount">
+                  <div className="amount-input-container">
+                    <span className="dollar-sign">$</span>
+                    <input
+                      type="number"
+                      value={emptyRowData.amount || ''}
+                      onChange={(e) => handleEmptyRowAmountChange(parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                      className={`item-amount-input ${!emptyRowData.name.trim() ? 'disabled-input' : ''}`}
+                      disabled={!emptyRowData.name.trim()}
+                    />
+                  </div>
+                </div>
+                <div className="table-cell item-percentage">
+                  0%
+                </div>
+              </div>
             </div>
           </div>
 
