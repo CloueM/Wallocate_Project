@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import '../styles/Navbar.css';
 
 const navItems = [
   { label: 'Dashboard', href: '#dashboard' },

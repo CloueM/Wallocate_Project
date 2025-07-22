@@ -1,5 +1,6 @@
 import { gsap } from 'gsap';
 import React, { useEffect, useRef, useState } from 'react';
+import '../styles/BudgetItemsSection.css';
 
 interface BudgetItem {
   id: number;

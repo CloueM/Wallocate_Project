@@ -4,7 +4,7 @@ import BudgetItemsSection from './components/BudgetItemsSection';
 import HeroSection from './components/HeroSection';
 import Layout from './components/Layout';
 import PlanSection from './components/PlanSection';
-import './index.css'; // if not already imported somewhere
+import './styles/global.css'; // if not already imported somewhere
 
 const App = () => {
   const [selectedPlan, setSelectedPlan] = useState({
