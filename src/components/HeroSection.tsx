@@ -1,44 +1,16 @@
-import { useGSAP } from '@gsap/react';
-import gsap from 'gsap';
-import React, { useRef } from 'react';
+import React from 'react';
+import { useHeroSectionLogic } from '../scripts/heroSectionLogic';
 import '../styles/HeroSection.css';
 import QuoteBanner from './QuoteBanner';
 
 const HeroSection: React.FC = () => {
-  const heroLeftRef = useRef<HTMLDivElement>(null);
-  const heroRightRef = useRef<HTMLDivElement>(null);
-  const heroLogoRef = useRef<HTMLImageElement>(null);
-  const glassContainerRef = useRef<HTMLDivElement>(null);
-
-  useGSAP(() => {
-    const tl = gsap.timeline();
-
-    // Set initial states
-    gsap.set([heroLeftRef.current, heroRightRef.current], {
-      y: '100vh',
-      opacity: 0
-    });
-
-    gsap.set(heroLogoRef.current, {
-      rotation: 0
-    });
-
-    // Animate hero-left and hero-right rising from bottom
-    tl.to([heroLeftRef.current, heroRightRef.current], {
-      y: 0,
-      opacity: 1,
-      duration: 1.2,
-      ease: "power3.out",
-      stagger: 0.2
-    })
-    // Animate logo spinning (fast to slow)
-    .to(heroLogoRef.current, {
-      rotation: 360,
-      duration: 2,
-      ease: "power3.out"
-    }, "-=1"); // Start 1 second before the previous animation ends
-
-  }, []);
+  const {
+    heroLeftRef,
+    heroRightRef,
+    heroLogoRef,
+    glassContainerRef,
+    handleContinueClick
+  } = useHeroSectionLogic();
 
   return (
     <section className="hero-section">
@@ -52,11 +24,7 @@ const HeroSection: React.FC = () => {
             </p>
             <button 
               className="hero-button"
-              onClick={() => {
-                document.getElementById('plan')?.scrollIntoView({ 
-                  behavior: 'smooth' 
-                });
-              }}
+              onClick={handleContinueClick}
             >
               Continue
             </button>
