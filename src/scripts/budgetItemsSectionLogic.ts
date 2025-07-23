@@ -27,6 +27,8 @@ interface BudgetItemsSectionProps {
   };
   setCustomPercentages: (percentages: { needs: number; savings: number; wants: number }) => void;
   income: string;
+  budgetItems: BudgetItem[];
+  setBudgetItems: React.Dispatch<React.SetStateAction<BudgetItem[]>>;
 }
 
 export const budgetPlans: BudgetPlan[] = [
@@ -68,9 +70,7 @@ export const budgetPlans: BudgetPlan[] = [
 ];
 
 export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
-  const { selectedPlan, setSelectedPlan, customPercentages, setCustomPercentages, income } = props;
-
-  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
+  const { selectedPlan, setSelectedPlan, customPercentages, setCustomPercentages, income, budgetItems, setBudgetItems } = props;
   const [lockedItems, setLockedItems] = useState<Set<number>>(new Set());
   const [totalAmount, setTotalAmount] = useState(0);
   const [totalPercentage, setTotalPercentage] = useState(0);
@@ -80,6 +80,37 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   const isInitialRender = useRef(true);
   const [emptyRowData, setEmptyRowData] = useState({ name: '', amount: 0 });
   const [userInput, setUserInput] = useState('');
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const [hoveredElement, setHoveredElement] = useState<string>('');
+  const [currentInputValues, setCurrentInputValues] = useState<{ [key: number]: number }>({});
+
+  // Track cursor position and hovered elements
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setCursorPosition({ x: e.clientX, y: e.clientY });
+      
+      // Detect what element is being hovered
+      const target = e.target as HTMLElement;
+      if (target) {
+        if (target.closest('.needs-circle')) {
+          setHoveredElement('needs-circle');
+        } else if (target.closest('.savings-circle')) {
+          setHoveredElement('savings-circle');
+        } else if (target.closest('.wants-circle')) {
+          setHoveredElement('wants-circle');
+        } else if (target.closest('.budget-items-table')) {
+          setHoveredElement('budget-table');
+        } else if (target.closest('.view-report-btn')) {
+          setHoveredElement('view-report-btn');
+        } else {
+          setHoveredElement('');
+        }
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => document.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   useEffect(() => {
     const amount = budgetItems.reduce((sum, item) => sum + item.amount, 0);
@@ -135,37 +166,227 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   };
 
   const handleAutoFix = () => {
-    const totalIncome = parseInt(income);
-    const newItems = [...budgetItems];
+    const totalIncome = parseInt(income) || 0;
+    const totalAllocated = budgetItems.reduce((sum, item) => sum + item.amount, 0);
+    const difference = totalIncome - totalAllocated;
     
-    ['needs', 'savings', 'wants'].forEach(category => {
-      const categoryItems = newItems.filter(item => item.category === category);
-      const categoryPercentage = customPercentages[category as keyof typeof customPercentages];
-      const categoryBudget = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    if (Math.abs(difference) < totalIncome * 0.05) {
+      // Perfect budget (within 5%) - fine-tune allocations
+      optimizePerfectBudget();
+    } else if (difference > 0) {
+      // Under budget - handle unallocated money
+      handleUnderBudget(difference);
+    } else {
+      // Over budget - reduce allocations
+      handleOverBudget(Math.abs(difference));
+    }
+  };
+
+  const optimizePerfectBudget = () => {
+    // Simply call adjustToTargetPercentages which now properly handles locked items
+    // and ensures we reach exactly 100% allocation
+    adjustToTargetPercentages();
+  };
+
+  const handleUnderBudget = (unallocatedAmount: number) => {
+    const totalIncome = parseInt(income) || 0;
+    const unallocatedPercent = (unallocatedAmount / totalIncome) * 100;
+    
+    // If small amount (< 5%), keep as buffer
+    if (unallocatedPercent <= 5) {
+      console.log(`Keeping $${unallocatedAmount.toFixed(2)} as emergency buffer (${unallocatedPercent.toFixed(1)}%)`);
+      return;
+    }
+    
+    // Prioritize savings (most financially responsible)
+    const savingsAllocation = unallocatedAmount * 0.7; // 70% to savings
+    const distributedAmount = unallocatedAmount * 0.3; // 30% distributed
+    
+    addToSavings(savingsAllocation);
+    setTimeout(() => distributeRemaining(distributedAmount), 100);
+  };
+
+  const handleOverBudget = (overAmount: number) => {
+    console.log(`Reducing budget by $${overAmount.toFixed(2)}...`);
+    
+    // Priority: Reduce Wants → Savings → Needs (financial priority order)
+    let remaining = overAmount;
+    
+    // 1. First, reduce wants (lowest priority)
+    remaining = reduceCategory('wants', remaining);
+    
+    // 2. If still over, reduce savings (with caution)
+    if (remaining > 0) {
+      remaining = reduceCategory('savings', remaining);
+    }
+    
+    // 3. Last resort: reduce needs (essential items)
+    if (remaining > 0) {
+      reduceCategory('needs', remaining);
+    }
+  };
+
+  const reduceCategory = (category: 'needs' | 'savings' | 'wants', targetReduction: number): number => {
+    const unlockedCategoryItems = budgetItems.filter(item => 
+      item.category === category && !lockedItems.has(item.id)
+    );
+    const unlockedCategoryTotal = unlockedCategoryItems.reduce((sum, item) => sum + item.amount, 0);
+    
+    if (unlockedCategoryTotal === 0) return targetReduction;
+    
+    const reductionAmount = Math.min(targetReduction, unlockedCategoryTotal);
+    const reductionRatio = reductionAmount / unlockedCategoryTotal;
+    
+    // Reduce each unlocked item proportionally, starting with largest amounts
+    const updatedItems = budgetItems.map(item => {
+      if (item.category === category && !lockedItems.has(item.id)) {
+        return {
+          ...item,
+          amount: Math.max(0, Math.round((item.amount * (1 - reductionRatio)) * 100) / 100)
+        };
+      }
+      return item;
+    });
+    
+    setBudgetItems(updatedItems);
+    return Math.max(0, targetReduction - reductionAmount);
+  };
+
+  const addToSavings = (amount: number) => {
+    const unlockedSavingsItems = budgetItems.filter(item => 
+      item.category === 'savings' && !lockedItems.has(item.id)
+    );
+    
+    if (unlockedSavingsItems.length > 0) {
+      // Add to largest existing unlocked savings item
+      const largestSavingsItem = unlockedSavingsItems.reduce((max, item) => 
+        item.amount > max.amount ? item : max
+      );
       
-      const currentAllocated = categoryItems.reduce((sum, item) => sum + item.amount, 0);
-      const zeroItems = categoryItems.filter(item => item.amount === 0);
-      
-      if (zeroItems.length > 0) {
-        const remainingBudget = categoryBudget - currentAllocated;
-        
-        if (remainingBudget > 0) {
-          const amountPerItem = remainingBudget / zeroItems.length;
-          
-          zeroItems.forEach(item => {
-            const itemIndex = newItems.findIndex(i => i.id === item.id);
-            if (itemIndex !== -1) {
-              newItems[itemIndex] = {
-                ...newItems[itemIndex],
-                amount: Math.round(amountPerItem * 100) / 100
-              };
-            }
-          });
+      const updatedItems = budgetItems.map(item => {
+        if (item.id === largestSavingsItem.id) {
+          return { 
+            ...item, 
+            amount: Math.round((item.amount + amount) * 100) / 100 
+          };
         }
+        return item;
+      });
+      setBudgetItems(updatedItems);
+    } else {
+      // Create new savings item if no unlocked savings items exist
+      const newSavingsItem = {
+        id: Date.now(),
+        name: 'Additional Savings',
+        amount: Math.round(amount * 100) / 100,
+        percentage: 0,
+        category: 'savings' as const
+      };
+      setBudgetItems(prev => [...prev, newSavingsItem]);
+    }
+  };
+
+  const distributeRemaining = (amount: number) => {
+    const unlockedItems = budgetItems.filter(item => !lockedItems.has(item.id));
+    const unlockedTotalAllocated = unlockedItems.reduce((sum, item) => sum + item.amount, 0);
+    
+    if (unlockedTotalAllocated === 0) return;
+    
+    // Distribute proportionally across unlocked items only
+    const updatedItems = budgetItems.map(item => {
+      if (lockedItems.has(item.id)) {
+        // Keep locked items unchanged
+        return item;
+      } else {
+        // Distribute among unlocked items
+        return {
+          ...item,
+          amount: Math.round((item.amount + (item.amount / unlockedTotalAllocated) * amount) * 100) / 100
+        };
       }
     });
     
-    setBudgetItems(newItems);
+    setBudgetItems(updatedItems);
+  };
+
+  const adjustToTargetPercentages = () => {
+    const totalIncome = parseInt(income) || 0;
+    if (totalIncome === 0) return;
+
+    // Calculate target amounts for each category
+    const targets = {
+      needs: (customPercentages.needs / 100) * totalIncome,
+      savings: (customPercentages.savings / 100) * totalIncome,
+      wants: (customPercentages.wants / 100) * totalIncome
+    };
+
+    // Calculate locked amounts for each category
+    const lockedAmounts = {
+      needs: budgetItems.filter(item => item.category === 'needs' && lockedItems.has(item.id))
+        .reduce((sum, item) => sum + item.amount, 0),
+      savings: budgetItems.filter(item => item.category === 'savings' && lockedItems.has(item.id))
+        .reduce((sum, item) => sum + item.amount, 0),
+      wants: budgetItems.filter(item => item.category === 'wants' && lockedItems.has(item.id))
+        .reduce((sum, item) => sum + item.amount, 0)
+    };
+
+    // Calculate remaining amounts for unlocked items in each category
+    const remainingForUnlocked = {
+      needs: Math.max(0, targets.needs - lockedAmounts.needs),
+      savings: Math.max(0, targets.savings - lockedAmounts.savings),
+      wants: Math.max(0, targets.wants - lockedAmounts.wants)
+    };
+
+    // Create a new array with updated items
+    const updatedItems = [...budgetItems];
+
+    // Process each category separately
+    ['needs', 'savings', 'wants'].forEach(category => {
+      const categoryKey = category as 'needs' | 'savings' | 'wants';
+      const remainingForCategory = remainingForUnlocked[categoryKey];
+      
+      // Get all unlocked items in this category
+      const unlockedCategoryItems = budgetItems.filter(i => 
+        i.category === category && !lockedItems.has(i.id)
+      );
+      
+      if (unlockedCategoryItems.length === 0) return;
+
+      // Calculate current total of unlocked items in this category
+      const currentUnlockedTotal = unlockedCategoryItems.reduce((sum, i) => sum + i.amount, 0);
+      
+      if (currentUnlockedTotal === 0) {
+        // If no unlocked items have amounts, distribute evenly
+        const amountPerItem = remainingForCategory / unlockedCategoryItems.length;
+        
+        // Update each unlocked item in this category
+        unlockedCategoryItems.forEach(unlockedItem => {
+          const itemIndex = updatedItems.findIndex(item => item.id === unlockedItem.id);
+          if (itemIndex !== -1) {
+            updatedItems[itemIndex] = {
+              ...updatedItems[itemIndex],
+              amount: Math.round(amountPerItem * 100) / 100
+            };
+          }
+        });
+      } else {
+        // Distribute proportionally based on current amounts
+        const distributionRatio = remainingForCategory / currentUnlockedTotal;
+        
+        // Update each unlocked item in this category
+        unlockedCategoryItems.forEach(unlockedItem => {
+          const itemIndex = updatedItems.findIndex(item => item.id === unlockedItem.id);
+          if (itemIndex !== -1) {
+            updatedItems[itemIndex] = {
+              ...updatedItems[itemIndex],
+              amount: Math.round((unlockedItem.amount * distributionRatio) * 100) / 100
+            };
+          }
+        });
+      }
+    });
+
+    setBudgetItems(updatedItems);
   };
 
   const getCategoryColor = (category: string) => {
@@ -217,6 +438,35 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     return allocatedPercentage.toFixed(2);
   };
 
+  // Get color indicator for remaining amount (category-specific)
+  const getRemainingAmountColor = (): string => {
+    const currentCategory = circleOrder[0];
+    const remaining = parseFloat(getRemainingAmount());
+    const totalIncome = parseInt(income);
+    const categoryPercentage = customPercentages[currentCategory as keyof typeof customPercentages];
+    const categoryAmount = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    
+    // Calculate relative remaining as percentage of this category's budget
+    const remainingPercent = categoryAmount > 0 ? (remaining / categoryAmount) * 100 : 0;
+    
+    if (remaining < -5) return '#ff4757'; // Red for over-allocated
+    if (remaining < 0) return '#ffa726'; // Orange for slightly over
+    if (Math.abs(remainingPercent) <= 5) return '#2ed573'; // Green for close to perfect (within 5%)
+    if (Math.abs(remainingPercent) <= 15) return '#ffa726'; // Orange for moderate difference
+    return '#ff4757'; // Red for significant difference
+  };
+
+  // Get color indicator for allocated percentage (category-specific)
+  const getAllocatedPercentageColor = (): string => {
+    const currentCategory = circleOrder[0];
+    const percentage = parseFloat(getAllocatedPercentage());
+    
+    // More lenient ranges for category-specific allocation
+    if (percentage >= 90 && percentage <= 110) return '#2ed573'; // Green for good allocation
+    if (percentage >= 75 && percentage <= 125) return '#ffa726'; // Orange for acceptable range
+    return '#ff4757'; // Red for poor allocation
+  };
+
   const getCategoryStatus = (category: 'needs' | 'savings' | 'wants'): { status: string; color: string } => {
     const totalIncome = parseInt(income);
     const categoryPercentage = customPercentages[category];
@@ -246,7 +496,12 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   };
 
   const canViewReport = (): boolean => {
-    return !hasOverBudgetCategory() && !hasEmptyCategory();
+    const totalIncome = parseFloat(income) || 0;
+    const totalAllocated = budgetItems.reduce((sum, item) => sum + item.amount, 0);
+    const remaining = totalIncome - totalAllocated;
+    
+    // Must have items in all categories AND allocate 100% of income
+    return !hasOverBudgetCategory() && !hasEmptyCategory() && remaining <= 0;
   };
 
   const getOverBudgetCategories = (): string[] => {
@@ -282,106 +537,175 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   };
 
   const getSmartTip = (): { title: string; text: string } => {
-    const currentCategory = circleOrder[0];
-    const currentItems = getCurrentCategoryItems();
-    const totalIncome = parseInt(income);
-    const categoryPercentage = customPercentages[currentCategory as keyof typeof customPercentages];
-    const categoryAmount = calculatePercentageToDollar(categoryPercentage, totalIncome);
-    const allocatedAmount = currentItems.reduce((sum, item) => sum + item.amount, 0);
-    const allocatedPercentage = parseFloat(getAllocatedPercentage());
-
-    const hasHighValueItems = currentItems.some(item => item.amount > categoryAmount * 0.3);
-    const hasManyItems = currentItems.length > 5;
-    const isOverBudget = allocatedPercentage > 100;
-    const isUnderBudget = allocatedPercentage < 50;
-    const hasZeroItems = currentItems.length === 0;
-    const biggestItem = currentItems.reduce((max, item) => item.amount > max.amount ? item : max, { name: '', amount: 0 });
-
-    if (currentCategory === 'needs') {
-      if (hasZeroItems) {
-        return {
-          title: "🏠 Hey there! Let's get started",
-          text: "I see you haven't added any essential expenses yet. Let's start with the basics - add your rent/mortgage, utilities, groceries, and insurance. These are your foundation for financial stability."
-        };
-      }
-      if (hasHighValueItems) {
-        return {
-          title: "💰 I noticed something important",
-          text: `Your "${biggestItem.name}" is taking up ${((biggestItem.amount / categoryAmount) * 100).toFixed(1)}% of your needs budget. That's quite significant! Have you considered negotiating this expense or looking for alternatives?`
-        };
-      }
-      if (isOverBudget) {
-        return {
-          title: "⚠️ We need to talk about your needs budget",
-          text: `You're currently ${(allocatedPercentage - 100).toFixed(1)}% over your needs budget. I see you have ${currentItems.length} essential expenses totaling $${allocatedAmount.toFixed(2)}. Which of these could we potentially reduce or optimize?`
-        };
-      }
-      if (isUnderBudget) {
-        return {
-          title: "✅ You're doing great with your essentials!",
-          text: `You're only using ${allocatedPercentage.toFixed(1)}% of your needs budget - that's excellent! You have $${(categoryAmount - allocatedAmount).toFixed(2)} left. Maybe we could move some of this to your savings or wants?`
-        };
-      }
+    const needsItems = budgetItems.filter(item => item.category === 'needs');
+    const savingsItems = budgetItems.filter(item => item.category === 'savings');
+    const wantsItems = budgetItems.filter(item => item.category === 'wants');
+    
+    const needsAmount = needsItems.reduce((sum, item) => sum + item.amount, 0);
+    const savingsAmount = savingsItems.reduce((sum, item) => sum + item.amount, 0);
+    const wantsAmount = wantsItems.reduce((sum, item) => sum + item.amount, 0);
+    
+    const totalIncome = parseFloat(income) || 0;
+    const totalAllocated = needsAmount + savingsAmount + wantsAmount;
+    const remaining = totalIncome - totalAllocated;
+    
+    // Priority-based guidance
+    if (needsAmount === 0 && (savingsAmount > 0 || wantsAmount > 0)) {
       return {
-        title: "📊 Your needs are well balanced",
-        text: `You have ${currentItems.length} essential expenses totaling $${allocatedAmount.toFixed(2)}, which is ${allocatedPercentage.toFixed(1)}% of your budget. This looks really good! Consider setting up automatic payments to avoid any late fees.`
+        title: "Prioritize Your Needs",
+        text: "Start with essential expenses like housing, food, and utilities. These should come first before savings or wants."
       };
     }
-
-    if (currentCategory === 'savings') {
-      if (hasZeroItems) {
-        return {
-          title: "💎 Ready to start building your future?",
-          text: `You have $${categoryAmount.toFixed(2)} available for savings but haven't added anything yet. Even starting with $100 for an emergency fund makes a huge difference. What's your first savings goal?`
-        };
-      }
-      if (allocatedPercentage < 50) {
-        return {
-          title: "🎯 Let's boost your savings game",
-          text: `You're only using ${allocatedPercentage.toFixed(1)}% of your savings budget. You have $${(categoryAmount - allocatedAmount).toFixed(2)} left to allocate! What about increasing your emergency fund or adding a retirement contribution?`
-        };
-      }
-      if (hasManyItems) {
-        return {
-          title: "🎯 Wow, you're really diversifying!",
-          text: `You have ${currentItems.length} different savings goals - that's impressive! You've allocated $${allocatedAmount.toFixed(2)} total. Which of these goals is most urgent? Maybe we should prioritize by timeline.`
-        };
-      }
+    
+    if (needsAmount > 0 && savingsAmount === 0 && wantsAmount > 0) {
       return {
-        title: "💰 Your savings strategy looks solid",
-        text: `You've allocated $${allocatedAmount.toFixed(2)} across ${currentItems.length} savings goals, using ${allocatedPercentage.toFixed(1)}% of your budget. Remember the order: emergency fund first, then retirement, then specific goals.`
+        title: "Don't Skip Savings",
+        text: "You have needs and wants, but no savings. Consider adding emergency funds or retirement savings before wants."
       };
     }
-
-    if (currentCategory === 'wants') {
-      if (hasZeroItems) {
-        return {
-          title: "🎉 Time to treat yourself!",
-          text: `You have $${categoryAmount.toFixed(2)} available for wants but haven't added anything yet. What brings you joy? Maybe dining out, entertainment, or a personal treat? Life isn't just about saving - it's about enjoying too!`
-        };
-      }
-      if (isOverBudget) {
-        return {
-          title: "🎭 Let's check your wants spending",
-          text: `You're ${(allocatedPercentage - 100).toFixed(1)}% over your wants budget with $${allocatedAmount.toFixed(2)} allocated. I see you have ${currentItems.length} items. Which of these brings you the most happiness? Maybe we can prioritize the ones that matter most.`
-        };
-      }
-      if (hasHighValueItems) {
-        return {
-          title: "💎 That's quite a luxury item!",
-          text: `Your "${biggestItem.name}" at $${biggestItem.amount.toFixed(2)} is a significant want purchase. That's ${((biggestItem.amount / categoryAmount) * 100).toFixed(1)}% of your wants budget! Are you sure this aligns with your long-term financial goals?`
-        };
-      }
+    
+    if (remaining > 0 && remaining < totalIncome * 0.1) {
       return {
-        title: "🎯 You have great self-control!",
-        text: `You're using ${allocatedPercentage.toFixed(1)}% of your wants budget with $${allocatedAmount.toFixed(2)} across ${currentItems.length} items. That's a really healthy balance! You still have $${(categoryAmount - allocatedAmount).toFixed(2)} left for more treats.`
+        title: "Almost There!",
+        text: "You're very close to allocating 100%. Consider adding small items or increasing existing amounts to reach your full budget."
       };
     }
-
+    
+    if (remaining > totalIncome * 0.2) {
+      return {
+        title: "Unallocated Funds",
+        text: "You have significant unallocated funds. Consider adding more items or increasing amounts in your categories."
+      };
+    }
+    
+    if (needsAmount > totalIncome * 0.7) {
+      return {
+        title: "High Needs Allocation",
+        text: "Your needs are taking up most of your budget. Consider if some items could be moved to wants or if you can reduce costs."
+      };
+    }
+    
     return {
-      title: "💡 Keep up the great work!",
-      text: "You're building excellent financial habits by tracking your expenses. Every budget entry brings you closer to your financial goals!"
+      title: "Well Balanced!",
+      text: "Your budget looks well distributed across needs, savings, and wants. Great job on maintaining balance!"
     };
+  };
+
+  const getInteractiveGuide = (): string => {
+    const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+    const needsItems = budgetItems.filter(item => item.category === 'needs');
+    const savingsItems = budgetItems.filter(item => item.category === 'savings');
+    const wantsItems = budgetItems.filter(item => item.category === 'wants');
+    
+    const needsAmount = needsItems.reduce((sum, item) => sum + item.amount, 0);
+    const savingsAmount = savingsItems.reduce((sum, item) => sum + item.amount, 0);
+    const wantsAmount = wantsItems.reduce((sum, item) => sum + item.amount, 0);
+    
+    const totalIncome = parseFloat(income) || 0;
+    const totalAllocated = needsAmount + savingsAmount + wantsAmount;
+    const remaining = totalIncome - totalAllocated;
+    const allocatedPercentage = totalIncome > 0 ? (totalAllocated / totalIncome) * 100 : 0;
+    
+    // Cursor-based guidance
+    if (hoveredElement === 'wants-circle' && needsAmount === 0) {
+      return "Click on the Needs circle first to add essential expenses like housing, food, and utilities.";
+    }
+    
+    if (hoveredElement === 'wants-circle' && needsAmount > 0 && savingsAmount === 0) {
+      return "Click on the Savings circle to add emergency funds and retirement savings before wants.";
+    }
+    
+    if (hoveredElement === 'savings-circle' && needsAmount === 0) {
+      return "Click on the Needs circle first to add essential expenses before setting up savings.";
+    }
+    
+    if (hoveredElement === 'view-report-btn' && allocatedPercentage < 100) {
+      return "You need to allocate 100% of your income before viewing the report. Add more items or increase amounts.";
+    }
+    
+    if (hoveredElement === 'view-report-btn' && remaining > 0) {
+      return "You still have $" + remaining.toFixed(2) + " to allocate. Add more items or increase amounts to reach 100%.";
+    }
+    
+    if (hoveredElement === 'view-report-btn' && allocatedPercentage === 100) {
+      return "Clicking this button will optimize your budget and show your comprehensive financial report.";
+    }
+    
+    // Button-specific guidance
+    if (hoveredElement === 'optimize-btn') {
+      const unlockedItems = budgetItems.filter(item => !lockedItems.has(item.id));
+      const unlockedItemsWithAmounts = unlockedItems.filter(item => item.amount > 0);
+      
+      if (unlockedItemsWithAmounts.length > 0) {
+        return "Clicking the optimize button will reset the amounts in your unlocked items to zero and balance out the remaining balance.";
+      } else {
+        return "Clicking the optimize button will balance out the remaining balance in your unlocked items.";
+      }
+    }
+    
+    // Category-specific guidance
+    if (currentCategory === 'needs') {
+      const currentItems = getCurrentCategoryItems();
+      const currentAmount = currentItems.reduce((sum, item) => sum + item.amount, 0);
+      const targetAmount = totalIncome * (customPercentages.needs / 100);
+      
+      if (currentItems.length === 0) {
+        return "Add your essential needs: housing, groceries, utilities, insurance, etc.";
+      }
+      
+      if (currentAmount < targetAmount * 0.5) {
+        return "You're only using " + ((currentAmount / targetAmount) * 100).toFixed(0) + "% of your needs budget. Add more items or increase amounts.";
+      }
+      
+      if (currentAmount > targetAmount * 1.1) {
+        return "Your needs are over budget. Consider moving some items to wants or reducing amounts.";
+      }
+      
+      return "Good progress on needs! Consider adding more items or moving to Savings category.";
+    }
+    
+    if (currentCategory === 'savings') {
+      const currentItems = getCurrentCategoryItems();
+      const currentAmount = currentItems.reduce((sum, item) => sum + item.amount, 0);
+      const targetAmount = totalIncome * (customPercentages.savings / 100);
+      
+      if (currentItems.length === 0) {
+        return "Add your savings goals: emergency fund, retirement, investments, etc.";
+      }
+      
+      if (currentAmount < targetAmount * 0.5) {
+        return "You're only using " + ((currentAmount / targetAmount) * 100).toFixed(0) + "% of your savings budget. Increase your savings amounts.";
+      }
+      
+      return "Great savings setup! Consider adding more items or moving to Wants category.";
+    }
+    
+    if (currentCategory === 'wants') {
+      const currentItems = getCurrentCategoryItems();
+      const currentAmount = currentItems.reduce((sum, item) => sum + item.amount, 0);
+      const targetAmount = totalIncome * (customPercentages.wants / 100);
+      
+      if (currentItems.length === 0) {
+        return "Add your lifestyle wants: dining out, entertainment, shopping, hobbies, etc.";
+      }
+      
+      if (currentAmount > targetAmount * 1.1) {
+        return "Your wants are over budget. Consider reducing amounts or moving items to other categories.";
+      }
+      
+      return "Nice wants setup! Make sure all categories are complete before viewing the report.";
+    }
+    
+    // General guidance
+    if (allocatedPercentage < 50) {
+      return "Add items to all three categories to build your complete budget.";
+    }
+    
+    if (allocatedPercentage < 100) {
+      return "You're " + allocatedPercentage.toFixed(0) + "% complete. Add more items or increase amounts to reach 100%.";
+    }
+    
+    return "Perfect! Your budget is 100% allocated. You can now view your comprehensive report!";
   };
 
   const handleItemNameChange = (id: number, name: string) => {
@@ -391,6 +715,12 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   };
 
   const handleItemAmountChange = (id: number, amount: number) => {
+    // Track the current input value for real-time validation
+    setCurrentInputValues(prev => ({
+      ...prev,
+      [id]: amount
+    }));
+    
     if (amount >= 0) {
       setBudgetItems(prev => prev.map(item => 
         item.id === id ? { ...item, amount } : item
@@ -403,41 +733,149 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   };
 
   const handleEmptyRowAmountChange = (amount: number) => {
-    if (emptyRowData.name.trim() && amount >= 0) {
-      setEmptyRowData(prev => ({ ...prev, amount }));
-    }
+    setEmptyRowData(prev => ({ ...prev, amount }));
+  };
+
+  const isCurrentCategoryOverBudget = (): boolean => {
+    const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+    const totalIncome = parseFloat(income) || 0;
+    const categoryPercentage = customPercentages[currentCategory];
+    const categoryBudget = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    
+    const currentCategoryItems = budgetItems.filter(item => item.category === currentCategory);
+    const currentCategoryTotal = currentCategoryItems.reduce((sum, item) => sum + item.amount, 0);
+    
+    return currentCategoryTotal > categoryBudget;
+  };
+
+  const getCurrentCategoryBudget = (): number => {
+    const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+    const totalIncome = parseFloat(income) || 0;
+    const categoryPercentage = customPercentages[currentCategory];
+    return calculatePercentageToDollar(categoryPercentage, totalIncome);
   };
 
   const handleAddItem = () => {
-    if (emptyRowData.name.trim() || emptyRowData.amount > 0) {
+    // Check if current category is over budget
+    if (isCurrentCategoryOverBudget()) {
       const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
-      const newItem: BudgetItem = {
-        id: Date.now(),
-        name: emptyRowData.name.trim(),
-        amount: emptyRowData.amount,
-        percentage: 0,
-        category: currentCategory
-      };
-      setBudgetItems(prev => [...prev, newItem]);
-      setEmptyRowData({ name: '', amount: 0 });
+      const categoryBudget = getCurrentCategoryBudget();
+      alert(`Cannot add more items: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category is over budget ($${categoryBudget.toFixed(2)}). Please reduce existing amounts or optimize your budget first.`);
+      return;
+    }
+
+    // Allow adding items even without amounts
+    const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+    const newItem: BudgetItem = {
+      id: Date.now(),
+      name: emptyRowData.name.trim() || 'Untitled Item',
+      amount: emptyRowData.amount || 0,
+      percentage: 0,
+      category: currentCategory
+    };
+    setBudgetItems(prev => [...prev, newItem]);
+    
+    // Only auto-lock the item if it has an amount
+    if (emptyRowData.amount > 0) {
       setLockedItems(prev => new Set([...prev, newItem.id]));
     }
+    
+    // Clear current input and immediately trigger a new input row for continuous adding
+    setEmptyRowData({ name: ' ', amount: 0 });
+    
+    // Focus the new input row
+    setTimeout(() => {
+      const nameInput = document.querySelector('.input-row .item-name-input') as HTMLInputElement;
+      if (nameInput) {
+        nameInput.focus();
+        nameInput.select();
+      }
+    }, 100);
   };
 
   const handleClearEmptyRow = () => {
+    // Reset completely - this will hide the input row and show the trigger row
     setEmptyRowData({ name: '', amount: 0 });
   };
 
-  const handleCheckMarkClick = (id: number) => {
+  const handleLockToggle = (id: number) => {
     setLockedItems(prev => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
         newSet.delete(id);
       } else {
         newSet.add(id);
+        // Clear current input value when item is locked
+        setCurrentInputValues(prev => {
+          const newValues = { ...prev };
+          delete newValues[id];
+          return newValues;
+        });
       }
       return newSet;
     });
+  };
+
+  const clearCurrentInputValue = (id: number) => {
+    setCurrentInputValues(prev => {
+      const newValues = { ...prev };
+      delete newValues[id];
+      return newValues;
+    });
+  };
+
+  const canLockItem = (item: BudgetItem, tempAmount?: number): boolean => {
+    // Use current input value if available, otherwise use item amount
+    const currentInputValue = currentInputValues[item.id];
+    const amountToCheck = tempAmount !== undefined ? tempAmount : (currentInputValue !== undefined ? currentInputValue : item.amount);
+    
+    // Can only lock if user manually entered an amount (not zero)
+    if (amountToCheck <= 0) {
+      return false;
+    }
+    
+    // Check if the item amount exceeds the category budget
+    const totalIncome = parseFloat(income) || 0;
+    const categoryPercentage = customPercentages[item.category as keyof typeof customPercentages];
+    const categoryBudget = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    
+    // Get all items in the same category (excluding the current item)
+    const categoryItems = budgetItems.filter(i => i.category === item.category && i.id !== item.id);
+    const categoryTotal = categoryItems.reduce((sum, i) => sum + i.amount, 0);
+    
+    // Check if adding this item would exceed the category budget
+    const totalWithItem = categoryTotal + amountToCheck;
+    
+    // Allow locking if the total doesn't exceed the category budget
+    return totalWithItem <= categoryBudget;
+  };
+
+  const getLockButtonTitle = (item: BudgetItem, tempAmount?: number): string => {
+    // Use current input value if available, otherwise use item amount
+    const currentInputValue = currentInputValues[item.id];
+    const amountToCheck = tempAmount !== undefined ? tempAmount : (currentInputValue !== undefined ? currentInputValue : item.amount);
+    
+    if (amountToCheck <= 0) {
+      return "Enter amount to lock";
+    }
+    
+    // Check if the item amount exceeds the category budget
+    const totalIncome = parseFloat(income) || 0;
+    const categoryPercentage = customPercentages[item.category as keyof typeof customPercentages];
+    const categoryBudget = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    
+    // Get all items in the same category (excluding the current item)
+    const categoryItems = budgetItems.filter(i => i.category === item.category && i.id !== item.id);
+    const categoryTotal = categoryItems.reduce((sum, i) => sum + i.amount, 0);
+    
+    // Check if adding this item would exceed the category budget
+    const totalWithItem = categoryTotal + amountToCheck;
+    
+    if (totalWithItem > categoryBudget) {
+      return `Amount exceeds ${item.category} budget ($${categoryBudget.toFixed(2)})`;
+    }
+    
+    return "Lock item";
   };
 
   const handleXMarkClick = (id: number) => {
@@ -464,9 +902,10 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     return Math.round((item.amount / categoryTotalAmount) * 100 * 100) / 100;
   };
 
-  const getCurrentCategoryItems = (): BudgetItem[] => {
-    const currentCategory = circleOrder[0];
-    return budgetItems.filter(item => item.category === currentCategory);
+  const getCurrentCategoryItems = () => {
+    const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+    const items = budgetItems.filter(item => item.category === currentCategory);
+    return items;
   };
 
   const handleCircleClick = (category: string) => {
@@ -535,9 +974,20 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     }, 1000);
   };
 
+  const getLockedItemsTotal = (): string => {
+    const lockedItemsTotal = budgetItems
+      .filter(item => lockedItems.has(item.id))
+      .reduce((sum, item) => sum + item.amount, 0);
+    
+    return lockedItemsTotal.toFixed(2);
+  };
+
+  const getLockedItemsCount = (): number => {
+    return budgetItems.filter(item => lockedItems.has(item.id)).length;
+  };
+
   return {
     budgetItems,
-    setBudgetItems,
     lockedItems,
     setLockedItems,
     totalAmount,
@@ -555,6 +1005,8 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     getCurrentCategoryAmount,
     getRemainingAmount,
     getAllocatedPercentage,
+    getRemainingAmountColor,
+    getAllocatedPercentageColor,
     getCategoryStatus,
     hasOverBudgetCategory,
     hasEmptyCategory,
@@ -565,17 +1017,25 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     getLargestItem,
     getAverageItemCost,
     getSmartTip,
+    getInteractiveGuide,
     handleItemNameChange,
     handleItemAmountChange,
     handleEmptyRowNameChange,
     handleEmptyRowAmountChange,
     handleAddItem,
     handleClearEmptyRow,
-    handleCheckMarkClick,
+    handleLockToggle,
+    canLockItem,
+    getLockButtonTitle,
+    clearCurrentInputValue,
     handleXMarkClick,
     calculateItemPercentage,
     getCurrentCategoryItems,
     handleCircleClick,
-    handleBackClick
+    handleBackClick,
+    getLockedItemsTotal,
+    getLockedItemsCount,
+    isCurrentCategoryOverBudget,
+    getCurrentCategoryBudget
   };
 }; 

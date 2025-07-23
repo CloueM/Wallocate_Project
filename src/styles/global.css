@@ -44,7 +44,7 @@ html, body {
 }
 
 .text-main {
-  font-size: 56px;
+  font-size: 48px;
   font-weight: bold;
   color: var(--prime-text-color);
   font-family: 'Outfit', sans-serif;
@@ -59,7 +59,7 @@ html, body {
 
 /* Text size utility classes */
 .slogan-txt {
-  font-size: 56px;
+  font-size: 48px;
   font-weight: bold;
   font-family: 'Outfit', sans-serif;
 }
@@ -82,4 +82,19 @@ html, body {
 .large-txt {
   font-size: 24px;
   font-family: 'Outfit', sans-serif;
-} 
+}
+
+/* Optimizations for 1920x1080 screens */
+@media (min-width: 1920px) and (max-height: 1080px) {
+  .text-main {
+    font-size: 42px;
+  }
+  
+  .slogan-txt {
+    font-size: 42px;
+  }
+  
+  .sub-slogan-txt {
+    font-size: 14px;
+  }
+}

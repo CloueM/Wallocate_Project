@@ -1,13 +1,11 @@
 /* Plan Section Styles */
 .plan-section {
-  height: 100vh;
   background-color: var(--background-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 2rem;
-  padding-left: 2rem;
-  padding-right: 2rem;
+  padding: 2rem;
+  min-height: 100vh;
   box-sizing: border-box;
   overflow: hidden;
 }

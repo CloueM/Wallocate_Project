@@ -28,14 +28,14 @@ interface BudgetItemsSectionProps {
   };
   setCustomPercentages: (percentages: { needs: number; savings: number; wants: number }) => void;
   income: string;
+  budgetItems: BudgetItem[];
+  setBudgetItems: React.Dispatch<React.SetStateAction<BudgetItem[]>>;
 }
 
 const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
-  const { selectedPlan, setSelectedPlan, customPercentages, setCustomPercentages, income } = props;
+  const { selectedPlan, setSelectedPlan, customPercentages, setCustomPercentages, income, budgetItems, setBudgetItems } = props;
 
   const {
-    budgetItems,
-    setBudgetItems,
     lockedItems,
     setLockedItems,
     totalAmount,
@@ -53,6 +53,8 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
     getCurrentCategoryAmount,
     getRemainingAmount,
     getAllocatedPercentage,
+    getRemainingAmountColor,
+    getAllocatedPercentageColor,
     getCategoryStatus,
     hasOverBudgetCategory,
     hasEmptyCategory,
@@ -69,12 +71,20 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
     handleEmptyRowAmountChange,
     handleAddItem,
     handleClearEmptyRow,
-    handleCheckMarkClick,
+    handleLockToggle,
+    canLockItem,
+    getLockButtonTitle,
+    clearCurrentInputValue,
     handleXMarkClick,
     calculateItemPercentage,
     getCurrentCategoryItems,
     handleCircleClick,
-    handleBackClick
+    handleBackClick,
+    getInteractiveGuide,
+    getLockedItemsTotal,
+    getLockedItemsCount,
+    isCurrentCategoryOverBudget,
+    getCurrentCategoryBudget
   } = useBudgetItemsSectionLogic(props);
 
   return (
@@ -82,9 +92,9 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
       <div className="budget-items-container">
         {/* Left Column - Copied from plan-right */}
         <div className="budget-items-left">
-          {/* Income Section */}
+          {/* Income Input */}
           <div className="income-section">
-            <label className="income-label">Your Total Income:</label>
+            <label className="income-label">Enter your total income:</label>
             <div className="income-input-container">
               <span className="currency-symbol">$</span>
               <input 
@@ -96,98 +106,126 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
             </div>
           </div>
 
-          {/* Information System */}
+          {/* Plan Details Section */}
           <div className="plan-details-container">
-            <div className="info-header">
-              <h3 className="info-title">Budget Overview</h3>
-              <button className="back-btn" onClick={handleBackClick}>
-                <span className="back-btn-text">Back</span>
-              </button>
-            </div>
-
-            {/* Status Section */}
-            <div className="info-section">
-              <h4 className="section-title">Status</h4>
-              <div className="status-grid">
-                <div className={`status-box ${getCategoryStatus('needs').color}`}>
-                  <span className="status-category">Needs</span>
-                  <span className="status-text">{getCategoryStatus('needs').status}</span>
-                </div>
-                <div className={`status-box ${getCategoryStatus('savings').color}`}>
-                  <span className="status-category">Savings</span>
-                  <span className="status-text">{getCategoryStatus('savings').status}</span>
-                </div>
-                <div className={`status-box ${getCategoryStatus('wants').color}`}>
-                  <span className="status-category">Wants</span>
-                  <span className="status-text">{getCategoryStatus('wants').status}</span>
+            <div className="budget-header-container">
+              <div className="budget-header-left">
+                <h3 className="current-budget-title">Current Budget Style:</h3>
+                <div className="plan-info-header">
+                  <h4 className="plan-name">{selectedPlan.name}</h4>
+                  <p className="plan-description">{selectedPlan.description}</p>
                 </div>
               </div>
-            </div>
-
-            {/* Items Added Section */}
-            <div className="info-section">
-              <h4 className="section-title">Items Added</h4>
-              <div className="items-grid">
-                <div className="items-box needs">
-                  <span className="items-category">Needs</span>
-                  <span className="items-count">{getCategoryItemsCount('needs')}</span>
-                </div>
-                <div className="items-box savings">
-                  <span className="items-category">Savings</span>
-                  <span className="items-count">{getCategoryItemsCount('savings')}</span>
-                </div>
-                <div className="items-box wants">
-                  <span className="items-category">Wants</span>
-                  <span className="items-count">{getCategoryItemsCount('wants')}</span>
-                </div>
-                <div className="items-box total">
-                  <span className="items-category">Total</span>
-                  <span className="items-count">{budgetItems.length}</span>
-                </div>
+              <div className="budget-header-right">
+                <button className="back-btn" onClick={handleBackClick}>
+                  <span className="back-btn-text">Back</span>
+                </button>
               </div>
             </div>
-
-            {/* Largest Single Item Section */}
-            <div className="info-section">
-              <h4 className="section-title">Largest Single Item</h4>
-              <div className="largest-items-grid">
-                {(['needs', 'savings', 'wants'] as const).map(category => {
-                  const largestItem = getLargestItem(category);
-                  return (
-                    <div key={category} className="largest-item-box">
-                      <span className="largest-category">{category.charAt(0).toUpperCase() + category.slice(1)}</span>
-                      {largestItem ? (
-                        <div className="largest-item-info">
-                          <span className="largest-item-name">👑 {largestItem.name}</span>
-                          <span className="largest-item-amount">${largestItem.amount.toFixed(2)}</span>
+            <div className="current-budget-content">
+              <div className="current-budget-left">
+                <div className="budget-style-icon">
+                  {selectedPlan.name === "Custom Plan" && (
+                    <img src="/images/icons/custom-plan.png" alt="Custom Plan" className="icon" />
+                  )}
+                  {selectedPlan.name === "Saver's Plan" && (
+                    <img src="/images/icons/savers-plan.png" alt="Saver's Plan" className="icon" />
+                  )}
+                  {selectedPlan.name === "Minimalist Plan" && (
+                    <img src="/images/icons/minimalist-plan.png" alt="Minimalist Plan" className="icon" />
+                  )}
+                  {selectedPlan.name === "Survival Plan" && (
+                    <img src="/images/icons/survival-plan.png" alt="Survival Plan" className="icon" />
+                  )}
+                  {selectedPlan.name === "Standard Plan" && (
+                    <img src="/images/icons/standard-plan.png" alt="Standard Plan" className="icon" />
+                  )}
+                </div>
+              </div>
+              <div className="current-budget-right">
+                <div className="budget-breakdown">
+                  <div className="budget-item">
+                    <div className="budget-slider-container">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={customPercentages.needs}
+                        disabled
+                        className="budget-slider disabled"
+                        data-type="needs"
+                      />
+                      <div className="slider-percentage" data-type="needs">
+                        <span>{customPercentages.needs}%</span>
+                      </div>
+                    </div>
+                    <span className="budget-label">Needs</span>
+                  </div>
+                  <div className="budget-item">
+                    <div className="budget-slider-container">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={customPercentages.savings}
+                        disabled
+                        className="budget-slider disabled"
+                        data-type="savings"
+                      />
+                      <div className="slider-percentage" data-type="savings">
+                        <span>{customPercentages.savings}%</span>
+                      </div>
+                    </div>
+                    <span className="budget-label">Savings</span>
+            </div>
+                  <div className="budget-item">
+                    <div className="budget-slider-container">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={customPercentages.wants}
+                        disabled
+                        className="budget-slider disabled"
+                        data-type="wants"
+                      />
+                      <div className="slider-percentage" data-type="wants">
+                        <span>{customPercentages.wants}%</span>
                         </div>
-                      ) : (
-                        <span className="no-items">No items added</span>
-                      )}
                     </div>
-                  );
-                })}
+                    <span className="budget-label">Wants</span>
+                  </div>
+                </div>
               </div>
             </div>
-
-            {/* Average Item Cost Section */}
-            <div className="info-section">
-              <h4 className="section-title">Average Item Cost</h4>
-              <div className="average-grid">
-                {(['needs', 'savings', 'wants'] as const).map(category => {
-                  const average = getAverageItemCost(category);
-                  const itemCount = getCategoryItemsCount(category);
-                  return (
-                    <div key={category} className="average-box">
-                      <span className="average-category">{category.charAt(0).toUpperCase() + category.slice(1)}</span>
-                      {itemCount > 0 ? (
-                        <span className="average-amount">${average.toFixed(2)}</span>
-                      ) : (
-                        <span className="no-items">No items</span>
-                      )}
-                    </div>
-                  );
-                })}
+            <div className="allocation-tip-container">
+              <div className="allocation-tip">
+                <h4 className="tip-title">💡 Budget Setup Guide</h4>
+                <div className="tip-content">
+                  <div className="tip-step">
+                    <span className="step-number">1</span>
+                    <span className="step-text">Add items to all three categories (Needs, Savings, Wants)</span>
+                  </div>
+                  <div className="tip-step">
+                    <span className="step-number">2</span>
+                    <span className="step-text">Enter amounts for your items to allocate your income</span>
+                  </div>
+                  <div className="tip-step">
+                    <span className="step-number">3</span>
+                    <span className="step-text">Lock important items you don't want changed during optimization</span>
+                  </div>
+                  <div className="tip-step">
+                    <span className="step-number">4</span>
+                    <span className="step-text">Click "Optimize Budget" to automatically balance remaining funds</span>
+                  </div>
+                  <div className="tip-step">
+                    <span className="step-number">5</span>
+                    <span className="step-text">Once 100% allocated, click "View Report" for detailed analysis</span>
+                  </div>
+                </div>
+              </div>
+              <div className="allocation-tip-note">
+                <strong>💡 Tip:</strong> Items with amounts are automatically locked. Use 🔓 to unlock and edit.
               </div>
             </div>
           </div>
@@ -258,20 +296,21 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                   <div className="table-cell table-actions-cell">
                     {lockedItems.has(item.id) ? (
                       <button
-                        className="action-icon edit-icon"
-                        onClick={() => handleCheckMarkClick(item.id)}
-                        title="Edit item"
+                        className="action-icon unlock-icon"
+                        onClick={() => handleLockToggle(item.id)}
+                        title="Unlock item"
                       >
-                        <img src="/images/icons/edit-mark.png" alt="Edit" className="action-icon-img" />
+                        🔓
                       </button>
                     ) : (
                       <>
                         <button
-                          className="action-icon check-icon"
-                          onClick={() => handleCheckMarkClick(item.id)}
-                          title="Lock item"
+                          className={`action-icon lock-icon ${!canLockItem(item) ? 'disabled' : ''}`}
+                          onClick={() => canLockItem(item) && handleLockToggle(item.id)}
+                          title={getLockButtonTitle(item)}
+                          disabled={!canLockItem(item)}
                         >
-                          <img src="/images/icons/check-mark.png" alt="Lock" className="action-icon-img" />
+                          🔒
                         </button>
                         <button
                           className="action-icon x-icon"
@@ -301,6 +340,7 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                         type="number"
                         value={item.amount || ''}
                         onChange={(e) => handleItemAmountChange(item.id, parseFloat(e.target.value) || 0)}
+                        onBlur={() => clearCurrentInputValue(item.id)}
                         placeholder="0"
                         min="0"
                         step="0.01"
@@ -314,78 +354,150 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                   </div>
                 </div>
               ))}
-              {/* Always show an empty input row */}
-              <div className="table-row input-row">
-                <div className="table-cell table-actions-cell">
-                  <button
-                    className="action-icon check-icon"
-                    onClick={handleAddItem}
-                    title="Add item"
-                    disabled={!emptyRowData.name.trim() && emptyRowData.amount <= 0}
-                  >
-                    <img src="/images/icons/check-mark.png" alt="Add" className="action-icon-img" />
-                  </button>
-                  <button
-                    className="action-icon x-icon"
-                    onClick={handleClearEmptyRow}
-                    title="Clear inputs"
-                  >
-                    <img src="/images/icons/cross-mark.png" alt="Clear" className="action-icon-img" />
-                  </button>
-                </div>
-                <div className="table-cell item-name">
-                  <input
-                    type="text"
-                    value={emptyRowData.name}
-                    onChange={(e) => handleEmptyRowNameChange(e.target.value)}
-                    placeholder="Enter item name..."
-                    className="item-name-input"
-                    style={{ color: getCategoryColor(circleOrder[0] as 'needs' | 'savings' | 'wants') }}
-                  />
-                </div>
-                <div className="table-cell item-amount">
-                  <div className="amount-input-container">
-                    <span className="dollar-sign">$</span>
+              {/* Show empty input row only when user starts typing */}
+              {(emptyRowData.name !== '' || emptyRowData.amount > 0) && (
+                <div className="table-row input-row">
+                  <div className="table-cell table-actions-cell">
+                    <button
+                      className={`action-icon check-icon ${isCurrentCategoryOverBudget() ? 'disabled' : ''}`}
+                      onClick={handleAddItem}
+                      title={isCurrentCategoryOverBudget() ? 
+                        `Cannot add: ${circleOrder[0].charAt(0).toUpperCase() + circleOrder[0].slice(1)} category is over budget` : 
+                        (emptyRowData.amount > 0 ? "Add and lock item" : "Add item")
+                      }
+                      disabled={isCurrentCategoryOverBudget()}
+                    >
+                      {emptyRowData.amount > 0 ? '🔒' : (
+                        <img src="/images/icons/check-mark.png" alt="Add" className="action-icon-img" />
+                      )}
+                    </button>
+                    <button
+                      className="action-icon x-icon"
+                      onClick={handleClearEmptyRow}
+                      title="Clear inputs"
+                    >
+                      <img src="/images/icons/cross-mark.png" alt="Clear" className="action-icon-img" />
+                    </button>
+                  </div>
+                  <div className="table-cell item-name">
                     <input
-                      type="number"
-                      value={emptyRowData.amount || ''}
-                      onChange={(e) => handleEmptyRowAmountChange(parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                      min="0"
-                      step="0.01"
-                      className={`item-amount-input ${!emptyRowData.name.trim() ? 'disabled-input' : ''}`}
-                      disabled={!emptyRowData.name.trim()}
+                      type="text"
+                      value={emptyRowData.name}
+                      onChange={(e) => handleEmptyRowNameChange(e.target.value)}
+                      placeholder="Enter item name..."
+                      className="item-name-input"
+                      style={{ color: getCategoryColor(circleOrder[0] as 'needs' | 'savings' | 'wants') }}
                     />
                   </div>
+                  <div className="table-cell item-amount">
+                    <div className="amount-input-container">
+                      <span className="dollar-sign">$</span>
+                      <input
+                        type="number"
+                        value={emptyRowData.amount || ''}
+                        onChange={(e) => handleEmptyRowAmountChange(parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                        className="item-amount-input"
+                      />
+                    </div>
+                  </div>
+                  <div className="table-cell item-percentage">
+                    0%
+                  </div>
                 </div>
-                <div className="table-cell item-percentage">
-                  0%
+              )}
+              
+              {/* Always show a trigger row for adding new items */}
+              {(emptyRowData.name === '' && emptyRowData.amount === 0) && (
+                <div 
+                  className={`table-row add-item-trigger ${isCurrentCategoryOverBudget() ? 'disabled' : ''}`} 
+                  onClick={() => {
+                    // Don't allow adding if category is over budget
+                    if (isCurrentCategoryOverBudget()) {
+                      const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+                      const categoryBudget = getCurrentCategoryBudget();
+                      alert(`Cannot add more items: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category is over budget ($${categoryBudget.toFixed(2)}). Please reduce existing amounts or optimize your budget first.`);
+                      return;
+                    }
+                    
+                    // Simple approach: just set name to a space to trigger the input row
+                    setEmptyRowData({ name: ' ', amount: 0 });
+                    // Focus after a short delay
+                    setTimeout(() => {
+                      const nameInput = document.querySelector('.input-row .item-name-input') as HTMLInputElement;
+                      if (nameInput) {
+                        nameInput.focus();
+                        nameInput.select(); // Select the space so user can type over it
+                      }
+                    }, 100);
+                  }}
+                  style={{ 
+                    cursor: isCurrentCategoryOverBudget() ? 'not-allowed' : 'pointer',
+                    opacity: isCurrentCategoryOverBudget() ? 0.5 : 1
+                  }}
+                >
+                  <div className="table-cell table-actions-cell">
+                    <span className="add-trigger-icon">+</span>
+                  </div>
+                  <div className="table-cell item-name add-trigger-text">
+                    {isCurrentCategoryOverBudget() ? 'Category over budget' : 'Enter item name...'}
+                  </div>
+                  <div className="table-cell item-amount add-trigger-text">
+                    $0.00
+                  </div>
+                  <div className="table-cell item-percentage add-trigger-text">
+                    0%
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
           {/* Row 4: Allocation Info */}
           <div className="budget-allocation-row">
-            <div className="allocation-left">
-              <div className="allocation-tip">
-                <h4 className="tip-title">{getSmartTip().title}</h4>
-                <p className="tip-text">
-                  {getSmartTip().text}
-                </p>
+            <div className="interactive-guide">
+              <h4 className="guide-title">🎯 Smart Guide</h4>
+              <div className="guide-content">
+                {getInteractiveGuide()}
               </div>
             </div>
             <div className="allocation-right">
               <div className="allocation-info-box">
+                <div className="allocation-info-header">
+                  <div 
+                    className="allocation-color-indicator"
+                    style={{ backgroundColor: getRemainingAmountColor() }}
+                  ></div>
                 <h4 className="allocation-info-title">Remaining to Allocate</h4>
+                </div>
                 <div className="allocation-info-value">
                   ${getRemainingAmount()}
                 </div>
               </div>
               <div className="allocation-info-box">
+                <div className="allocation-info-header">
+                  <div 
+                    className="allocation-color-indicator"
+                    style={{ backgroundColor: getAllocatedPercentageColor() }}
+                  ></div>
                 <h4 className="allocation-info-title">Allocated Percentage</h4>
+                </div>
                 <div className="allocation-info-value">
                   {getAllocatedPercentage()}%
+                </div>
+              </div>
+              <div className="allocation-info-box">
+                <div className="allocation-info-header">
+                  <div 
+                    className="allocation-color-indicator"
+                    style={{ backgroundColor: '#FFD700' }}
+                  ></div>
+                <h4 className="allocation-info-title">Locked Items ({getLockedItemsCount()})</h4>
+                </div>
+                <div className="allocation-info-value">
+                  ${getLockedItemsTotal()}
                 </div>
               </div>
             </div>
@@ -397,10 +509,35 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
               <button 
                 className={`view-report-btn ${!canViewReport() ? 'disabled' : ''}`}
                 disabled={!canViewReport()}
-                title={!canViewReport() ? 'Complete your budget setup first' : 'View your budget report'}
+                title={!canViewReport() ? 'Complete your budget setup first' : 'Optimize budget and view report'}
+                onClick={() => {
+                  if (canViewReport()) {
+                    // First, automatically optimize the budget
+                    handleAutoFix();
+                    
+                    // Small delay to allow optimization to complete
+                    setTimeout(() => {
+                      // Enable scrolling temporarily
+                      document.body.style.overflow = 'auto';
+                      document.documentElement.style.overflow = 'auto';
+                      
+                      // Scroll to report section
+                      const reportSection = document.getElementById('report');
+                      if (reportSection) {
+                        reportSection.scrollIntoView({ behavior: 'smooth' });
+                      }
+                      
+                      // Re-disable scrolling after animation
+                      setTimeout(() => {
+                        document.body.style.overflow = 'hidden';
+                        document.documentElement.style.overflow = 'hidden';
+                      }, 1000);
+                    }, 100);
+                  }
+                }}
               >
                 <span className="btn-icon">📊</span>
-                <span className="btn-text">View Report</span>
+                <span className="btn-text">Optimize & View Report</span>
               </button>
               <button className="optimize-btn" onClick={handleAutoFix}>
                 <span className="btn-icon">✨</span>
@@ -423,9 +560,9 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                   )}
                   <p className="warning-suggestion">
                     {hasOverBudgetCategory() && hasEmptyCategory() 
-                      ? "Click \"Optimize Budget\" to automatically fill empty categories and balance over-budget items."
+                      ? "Click \"Optimize & View Report\" to automatically fill empty categories and balance over-budget items."
                       : hasOverBudgetCategory()
-                      ? "Click \"Optimize Budget\" to automatically adjust your allocations and balance your budget."
+                      ? "Click \"Optimize & View Report\" to automatically adjust your allocations and balance your budget."
                       : "Add items to empty categories."
                     }
                   </p>

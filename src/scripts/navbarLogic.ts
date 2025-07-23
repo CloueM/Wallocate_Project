@@ -21,6 +21,24 @@ export const useNavbarLogic = () => {
         behavior: 'smooth'
       });
       setActive(item.label);
+    } else if (item.label === 'Report') {
+      // Enable scrolling temporarily
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.overflow = 'auto';
+      
+      // Scroll to report section
+      const reportSection = document.getElementById('report');
+      if (reportSection) {
+        reportSection.scrollIntoView({ behavior: 'smooth' });
+      }
+      
+      // Re-disable scrolling after animation
+      setTimeout(() => {
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+      }, 1000);
+      
+      setActive(item.label);
     } else {
       setActive(item.label);
       // Handle other navigation items as needed

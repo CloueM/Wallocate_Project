@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: space-between;
   font-family: 'Outfit', sans-serif;
-  box-shadow: 0 4px 20px rgba(97, 121, 83, 0.6);
+  box-shadow: 0 4px 50px rgb(97, 121, 83);
 }
 
 .navbar-logo {
@@ -59,7 +59,7 @@
 .nav-link-active {
   background-color: var(--primary-color);
   transform: scale(1.02);
-  box-shadow: 0 2px 8px rgba(97, 121, 83, 0.3);
+  box-shadow: 0 2px 8px rgba(107, 149, 83, 0.709);
 }
 
 .nav-link-active:hover {

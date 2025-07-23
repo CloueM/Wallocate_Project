@@ -1,0 +1,269 @@
+/* Financial Tips Section Styles */
+.financial-tips-section {
+  background: linear-gradient(135deg, #2A2A2A 0%, #1A1A1A 100%);
+  padding: 2rem;
+  margin: 2rem 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.financial-tips-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+}
+
+.tips-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.tips-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.tips-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--prime-text-color);
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+}
+
+.tips-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tips-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: var(--prime-text-color);
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  min-width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tips-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.tips-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tips-refresh {
+  animation: none;
+}
+
+.tips-refresh:hover {
+  animation: spin 0.5s ease-in-out;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.tip-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: all 0.5s ease;
+  position: relative;
+}
+
+.tip-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary-color);
+  border-radius: 12px 12px 0 0;
+}
+
+.tip-category {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.category-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.category-budgeting {
+  background: rgba(97, 121, 83, 0.2);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.category-saving {
+  background: rgba(201, 180, 75, 0.2);
+  color: var(--savings-color);
+  border: 1px solid var(--savings-color);
+}
+
+.category-emergency {
+  background: rgba(255, 144, 96, 0.2);
+  color: var(--wants-color);
+  border: 1px solid var(--wants-color);
+}
+
+.category-investing {
+  background: rgba(92, 111, 145, 0.2);
+  color: var(--needs-color);
+  border: 1px solid var(--needs-color);
+}
+
+.category-debt {
+  background: rgba(255, 144, 96, 0.2);
+  color: #ff6b6b;
+  border: 1px solid #ff6b6b;
+}
+
+.category-general {
+  background: rgba(157, 162, 139, 0.2);
+  color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+}
+
+.tip-relevance {
+  font-size: 0.9rem;
+  color: #ffd700;
+}
+
+.tip-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--prime-text-color);
+  margin: 0 0 1rem 0;
+  line-height: 1.4;
+}
+
+.tip-content {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--secondary-color);
+  margin: 0 0 1.5rem 0;
+}
+
+.tip-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tip-source {
+  font-size: 0.85rem;
+  color: var(--secondary-color);
+  font-style: italic;
+}
+
+.tip-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tips-nav {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.tip-counter {
+  font-size: 0.85rem;
+  color: var(--secondary-color);
+  min-width: 3rem;
+  text-align: center;
+}
+
+.tip-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.tip-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tip-indicator.active {
+  background: var(--primary-color);
+  transform: scale(1.2);
+}
+
+.tip-indicator:hover {
+  background: var(--primary-color);
+  opacity: 0.8;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .financial-tips-section {
+    padding: 1.5rem 1rem;
+    margin: 1rem 0;
+  }
+
+  .tips-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .tip-card {
+    padding: 1rem;
+  }
+
+  .tip-footer {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .tip-title {
+    font-size: 1.1rem;
+  }
+
+  .tip-content {
+    font-size: 0.95rem;
+  }
+} 
