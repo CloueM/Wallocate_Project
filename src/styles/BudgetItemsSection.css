@@ -533,6 +533,38 @@
   background-color: rgba(255, 255, 255, 0.05);
 }
 
+.error-input {
+  border-color: #ff4757 !important;
+  background-color: rgba(255, 71, 87, 0.1) !important;
+  color: #ff4757 !important;
+}
+
+.error-input:focus {
+  border-color: #ff4757 !important;
+  box-shadow: 0 0 0 2px rgba(255, 71, 87, 0.2) !important;
+}
+
+.validation-error {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #ff4757;
+  color: white;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 2px;
+  z-index: 10;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amount-input-container {
+  position: relative;
+}
+
 .input-row {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }

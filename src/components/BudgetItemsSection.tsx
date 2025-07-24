@@ -53,8 +53,10 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
     getCurrentCategoryAmount,
     getRemainingAmount,
     getAllocatedPercentage,
+    getGlobalAllocatedPercentage,
     getRemainingAmountColor,
     getAllocatedPercentageColor,
+    getGlobalAllocatedPercentageColor,
     getCategoryStatus,
     hasOverBudgetCategory,
     hasEmptyCategory,
@@ -67,6 +69,13 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
     getSmartTip,
     handleItemNameChange,
     handleItemAmountChange,
+    validateBudgetLimit,
+    getItemValidationError,
+    isItemOverBudget,
+    isItemNameEmpty,
+    isEmptyRowNameEmpty,
+    validateEmptyRowBudgetLimit,
+    getEmptyRowValidationError,
     handleEmptyRowNameChange,
     handleEmptyRowAmountChange,
     handleAddItem,
@@ -344,9 +353,15 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                         placeholder="0"
                         min="0"
                         step="0.01"
-                        className={`item-amount-input ${lockedItems.has(item.id) ? 'locked-input' : ''}`}
-                        disabled={lockedItems.has(item.id)}
+                        className={`item-amount-input ${lockedItems.has(item.id) ? 'locked-input' : ''} ${isItemOverBudget(item.id) ? 'error-input' : ''} ${isItemNameEmpty(item.id) ? 'disabled-input' : ''}`}
+                        disabled={lockedItems.has(item.id) || isItemNameEmpty(item.id)}
+                        title={isItemNameEmpty(item.id) ? 'Enter item name first' : getItemValidationError(item.id)}
                       />
+                      {isItemOverBudget(item.id) && (
+                        <div className="validation-error">
+                          {getItemValidationError(item.id)}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="table-cell item-percentage">
@@ -399,8 +414,15 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                         placeholder="0"
                         min="0"
                         step="0.01"
-                        className="item-amount-input"
+                        className={`item-amount-input ${validateEmptyRowBudgetLimit() ? 'error-input' : ''} ${isEmptyRowNameEmpty() ? 'disabled-input' : ''}`}
+                        disabled={isEmptyRowNameEmpty()}
+                        title={isEmptyRowNameEmpty() ? 'Enter item name first' : getEmptyRowValidationError()}
                       />
+                      {validateEmptyRowBudgetLimit() && (
+                        <div className="validation-error">
+                          {getEmptyRowValidationError()}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="table-cell item-percentage">
@@ -480,12 +502,12 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                 <div className="allocation-info-header">
                   <div 
                     className="allocation-color-indicator"
-                    style={{ backgroundColor: getAllocatedPercentageColor() }}
+                    style={{ backgroundColor: getGlobalAllocatedPercentageColor() }}
                   ></div>
                 <h4 className="allocation-info-title">Allocated Percentage</h4>
                 </div>
                 <div className="allocation-info-value">
-                  {getAllocatedPercentage()}%
+                  {getGlobalAllocatedPercentage()}%
                 </div>
               </div>
               <div className="allocation-info-box">
