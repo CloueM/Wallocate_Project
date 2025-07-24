@@ -152,10 +152,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
 
   // Recursive function to calculate percentage to dollar amount
   const calculatePercentageToDollar = (percentage: number, totalIncome: number, precision: number = 2): number => {
-    if (precision <= 0) {
-      return Math.round((percentage / 100) * totalIncome);
-    }
-    return Math.round((percentage / 100) * totalIncome * Math.pow(10, precision)) / Math.pow(10, precision);
+    return Math.floor((percentage / 100) * totalIncome);
   };
 
   // Recursive function to calculate dollar amount to percentage
@@ -167,35 +164,57 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   };
 
   const handleAutoFix = () => {
-    // Always use adjustToTargetPercentages to ensure exactly 100% allocation
-    // This function properly handles all cases: under budget, over budget, and perfect budget
-    adjustToTargetPercentages();
+    // Repeat adjustment until all categories are exactly balanced
+    let maxTries = 5; // Prevent infinite loop in pathological cases
+    let needsFix = true;
+    let currentItems = [...budgetItems]; // Work with a local copy
+    
+    while (needsFix && maxTries-- > 0) {
+      // Update adjustToTargetPercentages to work with currentItems and return the updated items
+      currentItems = adjustToTargetPercentagesSync(currentItems);
+      needsFix = false;
+      const totalIncome = parseInt(income) || 0;
+      
+      ['needs', 'savings', 'wants'].forEach(category => {
+        const categoryBudget = calculatePercentageToDollar(customPercentages[category], totalIncome);
+        const items = currentItems.filter(item => item.category === category);
+        const unlocked = items.filter(item => !lockedItems.has(item.id));
+        if (unlocked.length > 0) {
+          const allocated = items.reduce((sum, item) => sum + item.amount, 0);
+          const diff = categoryBudget - allocated;
+          if (diff !== 0) {
+            needsFix = true;
+            const lastUnlockedId = unlocked[unlocked.length - 1].id;
+            currentItems = currentItems.map(item =>
+              item.id === lastUnlockedId ? { ...item, amount: item.amount + diff } : item
+            );
+          }
+        }
+      });
+    }
+    
+    // Finally, set the state with the corrected items
+    setBudgetItems(currentItems);
   };
 
-
-
-
-
-
-
-  const adjustToTargetPercentages = () => {
+  const adjustToTargetPercentagesSync = (inputItems: any[]) => {
     const totalIncome = parseInt(income) || 0;
-    if (totalIncome === 0) return;
+    if (totalIncome === 0) return inputItems;
 
     // Calculate target amounts for each category
     const targets = {
-      needs: (customPercentages.needs / 100) * totalIncome,
-      savings: (customPercentages.savings / 100) * totalIncome,
-      wants: (customPercentages.wants / 100) * totalIncome
+      needs: Math.floor((customPercentages.needs / 100) * totalIncome),
+      savings: Math.floor((customPercentages.savings / 100) * totalIncome),
+      wants: Math.floor((customPercentages.wants / 100) * totalIncome)
     };
 
     // Calculate locked amounts for each category
     const lockedAmounts = {
-      needs: budgetItems.filter(item => item.category === 'needs' && lockedItems.has(item.id))
+      needs: inputItems.filter(item => item.category === 'needs' && lockedItems.has(item.id))
         .reduce((sum, item) => sum + item.amount, 0),
-      savings: budgetItems.filter(item => item.category === 'savings' && lockedItems.has(item.id))
+      savings: inputItems.filter(item => item.category === 'savings' && lockedItems.has(item.id))
         .reduce((sum, item) => sum + item.amount, 0),
-      wants: budgetItems.filter(item => item.category === 'wants' && lockedItems.has(item.id))
+      wants: inputItems.filter(item => item.category === 'wants' && lockedItems.has(item.id))
         .reduce((sum, item) => sum + item.amount, 0)
     };
 
@@ -207,7 +226,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     };
 
     // Create a new array with updated items
-    const updatedItems = [...budgetItems];
+    const updatedItems = [...inputItems];
 
     // Process each category separately
     ['needs', 'savings', 'wants'].forEach(category => {
@@ -215,7 +234,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
       const remainingForCategory = remainingForUnlocked[categoryKey];
       
       // Get all unlocked items in this category
-      const unlockedCategoryItems = budgetItems.filter(i => 
+      const unlockedCategoryItems = inputItems.filter(i => 
         i.category === category && !lockedItems.has(i.id)
       );
       
@@ -223,9 +242,9 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
         // If no unlocked items in this category, create one if there's remaining budget
         if (remainingForCategory > 0) {
           const newItem = {
-            id: Date.now() + Math.random(), // Ensure unique ID
+            id: Date.now() + Math.random(),
             name: `Additional ${category.charAt(0).toUpperCase() + category.slice(1)}`,
-            amount: Math.round(remainingForCategory * 100) / 100,
+            amount: remainingForCategory,
             percentage: 0,
             category: category as 'needs' | 'savings' | 'wants'
           };
@@ -234,61 +253,35 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
         return;
       }
 
-      // Calculate current total of unlocked items in this category
-      const currentUnlockedTotal = unlockedCategoryItems.reduce((sum, i) => sum + i.amount, 0);
-      
-      if (currentUnlockedTotal === 0) {
-        // If no unlocked items have amounts, distribute evenly
-        const amountPerItem = remainingForCategory / unlockedCategoryItems.length;
-        
-        // Update each unlocked item in this category
-        unlockedCategoryItems.forEach(unlockedItem => {
-          const itemIndex = updatedItems.findIndex(item => item.id === unlockedItem.id);
-          if (itemIndex !== -1) {
-            updatedItems[itemIndex] = {
-              ...updatedItems[itemIndex],
-              amount: Math.round(amountPerItem * 100) / 100
-            };
-          }
-        });
-      } else {
-        // Distribute proportionally based on current amounts
-        const distributionRatio = remainingForCategory / currentUnlockedTotal;
-        
-        // Update each unlocked item in this category
-        unlockedCategoryItems.forEach(unlockedItem => {
-          const itemIndex = updatedItems.findIndex(item => item.id === unlockedItem.id);
-          if (itemIndex !== -1) {
-            updatedItems[itemIndex] = {
-              ...updatedItems[itemIndex],
-              amount: Math.round((unlockedItem.amount * distributionRatio) * 100) / 100
-            };
-          }
-        });
-      }
+      // Reset all unlocked items to 0 first, then distribute the remaining budget
+      unlockedCategoryItems.forEach(unlockedItem => {
+        const itemIndex = updatedItems.findIndex(item => item.id === unlockedItem.id);
+        if (itemIndex !== -1) {
+          updatedItems[itemIndex] = {
+            ...updatedItems[itemIndex],
+            amount: 0
+          };
+        }
+      });
+
+      // Distribute the remaining budget evenly among all unlocked items
+      const amountPerItem = Math.floor(remainingForCategory / unlockedCategoryItems.length);
+      const remainder = remainingForCategory % unlockedCategoryItems.length;
+
+      unlockedCategoryItems.forEach((unlockedItem, index) => {
+        const itemIndex = updatedItems.findIndex(item => item.id === unlockedItem.id);
+        if (itemIndex !== -1) {
+          // Give each item the base amount, plus 1 extra to the first 'remainder' items
+          const extraAmount = index < remainder ? 1 : 0;
+          updatedItems[itemIndex] = {
+            ...updatedItems[itemIndex],
+            amount: amountPerItem + extraAmount
+          };
+        }
+      });
     });
 
-    // Final verification: ensure total allocation equals total income
-    const finalTotalAllocated = updatedItems.reduce((sum, item) => sum + item.amount, 0);
-    const difference = totalIncome - finalTotalAllocated;
-    
-    if (Math.abs(difference) > 0.01) {
-      // If there's still a difference, distribute it among unlocked items
-      const unlockedItems = updatedItems.filter(item => !lockedItems.has(item.id));
-      if (unlockedItems.length > 0) {
-        const adjustmentPerItem = difference / unlockedItems.length;
-        updatedItems.forEach((item, index) => {
-          if (!lockedItems.has(item.id)) {
-            updatedItems[index] = {
-              ...item,
-              amount: Math.round((item.amount + adjustmentPerItem) * 100) / 100
-            };
-          }
-        });
-      }
-    }
-
-    setBudgetItems(updatedItems);
+    return updatedItems;
   };
 
   const getCategoryColor = (category: string) => {
@@ -305,12 +298,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     const percentage = customPercentages[currentCategory as keyof typeof customPercentages];
     const totalIncome = parseInt(income);
     const dollarAmount = calculatePercentageToDollar(percentage, totalIncome);
-    return dollarAmount.toLocaleString('en-US', { 
-      style: 'currency', 
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
+    return `$${Math.round(dollarAmount)}`;
   };
 
   const getRemainingAmount = (): string => {
@@ -323,7 +311,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     const allocatedAmount = currentCategoryItems.reduce((sum, item) => sum + item.amount, 0);
     
     const remainingAmount = categoryAmount - allocatedAmount;
-    return remainingAmount.toFixed(2);
+    return remainingAmount.toString();
   };
 
   const getAllocatedPercentage = (): string => {
@@ -413,13 +401,23 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     );
   };
 
+  const isLockedItemsUnderfunded = (): boolean => {
+    const totalIncome = parseFloat(income) || 0;
+    const categories: ('needs' | 'savings' | 'wants')[] = ['needs', 'savings', 'wants'];
+    return categories.some(category => {
+      const categoryBudget = calculatePercentageToDollar(customPercentages[category], totalIncome);
+      const lockedTotal = budgetItems.filter(item => item.category === category && lockedItems.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
+      return lockedTotal > categoryBudget;
+    });
+  };
+
   const canViewReport = (): boolean => {
     const totalIncome = parseFloat(income) || 0;
     const totalAllocated = budgetItems.reduce((sum, item) => sum + item.amount, 0);
     const remaining = totalIncome - totalAllocated;
     
-    // Must have items in all categories AND allocate 100% of income
-    return !hasOverBudgetCategory() && !hasEmptyCategory() && remaining <= 0;
+    // Must have items in all categories AND allocate 100% of income AND not have locked items over budget
+    return !hasOverBudgetCategory() && !hasEmptyCategory() && remaining === 0 && !isLockedItemsUnderfunded();
   };
 
   const getOverBudgetCategories = (): string[] => {
@@ -542,7 +540,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     }
     
     if (hoveredElement === 'view-report-btn' && remaining > 0) {
-      return "You still have $" + remaining.toFixed(2) + " to allocate. Add more items or increase amounts to reach 100%.";
+      return "You still have $" + Math.round(remaining).toFixed(0) + " to allocate. Add more items or increase amounts to reach 100%.";
     }
     
     if (hoveredElement === 'view-report-btn' && allocatedPercentage === 100) {
@@ -662,7 +660,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     const item = budgetItems.find(item => item.id === itemId);
     if (!item) return '';
     
-    const totalIncome = parseFloat(income) || 0;
+    const totalIncome = parseInt(income) || 0;
     const categoryBudget = calculatePercentageToDollar(customPercentages[item.category], totalIncome);
     
     // Calculate current category total excluding the item being edited
@@ -677,7 +675,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     // Check if category would be over budget
     if (newCategoryTotal > categoryBudget) {
       const overAmount = newCategoryTotal - categoryBudget;
-      return `${item.category.charAt(0).toUpperCase() + item.category.slice(1)} would be $${overAmount.toFixed(2)} over budget`;
+      return `${item.category.charAt(0).toUpperCase() + item.category.slice(1)} would be $${Math.round(overAmount)} over budget`;
     }
     
     // Check if total budget would be exceeded
@@ -690,7 +688,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     
     if (totalAllocated > totalIncome) {
       const overAmount = totalAllocated - totalIncome;
-      return `Total budget would be $${overAmount.toFixed(2)} over income`;
+      return `Total budget would be $${Math.round(overAmount)} over income`;
     }
     
     return '';
@@ -714,7 +712,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   };
 
   const validateEmptyRowBudgetLimit = (): boolean => {
-    const totalIncome = parseFloat(income) || 0;
+    const totalIncome = parseInt(income) || 0;
     const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
     const categoryBudget = calculatePercentageToDollar(customPercentages[currentCategory], totalIncome);
     
@@ -741,7 +739,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   };
 
   const getEmptyRowValidationError = (): string => {
-    const totalIncome = parseFloat(income) || 0;
+    const totalIncome = parseInt(income) || 0;
     const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
     const categoryBudget = calculatePercentageToDollar(customPercentages[currentCategory], totalIncome);
     
@@ -755,7 +753,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     // Check if category would be over budget
     if (newCategoryTotal > categoryBudget) {
       const overAmount = newCategoryTotal - categoryBudget;
-      return `${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} would be $${overAmount.toFixed(2)} over budget`;
+      return `${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} would be $${Math.round(overAmount)} over budget`;
     }
     
     // Check if total budget would be exceeded
@@ -763,7 +761,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     
     if (totalAllocated > totalIncome) {
       const overAmount = totalAllocated - totalIncome;
-      return `Total budget would be $${overAmount.toFixed(2)} over income`;
+      return `Total budget would be $${Math.round(overAmount)} over income`;
     }
     
     return '';
@@ -784,29 +782,30 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
 
   const isCurrentCategoryOverBudget = (): boolean => {
     const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
-    const totalIncome = parseFloat(income) || 0;
+    const totalIncome = parseInt(income) || 0;
     const categoryPercentage = customPercentages[currentCategory];
     const categoryBudget = calculatePercentageToDollar(categoryPercentage, totalIncome);
     
     const currentCategoryItems = budgetItems.filter(item => item.category === currentCategory);
     const currentCategoryTotal = currentCategoryItems.reduce((sum, item) => sum + item.amount, 0);
     
-    return currentCategoryTotal > categoryBudget;
+    return currentCategoryTotal >= categoryBudget;
   };
 
   const getCurrentCategoryBudget = (): number => {
     const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
-    const totalIncome = parseFloat(income) || 0;
+    const totalIncome = parseInt(income) || 0;
     const categoryPercentage = customPercentages[currentCategory];
     return calculatePercentageToDollar(categoryPercentage, totalIncome);
   };
 
-  const handleAddItem = () => {
+  const handleAddItem = (onError?: (msg: string) => void) => {
     // Check if current category is over budget
     if (isCurrentCategoryOverBudget()) {
       const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
       const categoryBudget = getCurrentCategoryBudget();
-      alert(`Cannot add more items: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category is over budget ($${categoryBudget.toFixed(2)}). Please reduce existing amounts or optimize your budget first.`);
+      const msg = `Cannot add more items: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category is over budget ($${Math.round(categoryBudget)}). Please reduce existing amounts or optimize your budget first.`;
+      if (onError) onError(msg);
       return;
     }
 
@@ -895,7 +894,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     }
     
     // Check if the item amount exceeds the category budget
-    const totalIncome = parseFloat(income) || 0;
+    const totalIncome = parseInt(income) || 0;
     const categoryPercentage = customPercentages[item.category as keyof typeof customPercentages];
     const categoryBudget = calculatePercentageToDollar(categoryPercentage, totalIncome);
     
@@ -920,7 +919,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     }
     
     // Check if the item amount exceeds the category budget
-    const totalIncome = parseFloat(income) || 0;
+    const totalIncome = parseInt(income) || 0;
     const categoryPercentage = customPercentages[item.category as keyof typeof customPercentages];
     const categoryBudget = calculatePercentageToDollar(categoryPercentage, totalIncome);
     
@@ -932,7 +931,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     const totalWithItem = categoryTotal + amountToCheck;
     
     if (totalWithItem > categoryBudget) {
-      return `Amount exceeds ${item.category} budget ($${categoryBudget.toFixed(2)})`;
+      return `Amount exceeds ${item.category} budget ($${Math.round(categoryBudget)})`;
     }
     
     return "Lock item";
@@ -1039,7 +1038,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
       .filter(item => lockedItems.has(item.id))
       .reduce((sum, item) => sum + item.amount, 0);
     
-    return lockedItemsTotal.toFixed(2);
+    return Math.round(lockedItemsTotal).toString();
   };
 
   const getLockedItemsCount = (): number => {
@@ -1105,6 +1104,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     getLockedItemsTotal,
     getLockedItemsCount,
     isCurrentCategoryOverBudget,
-    getCurrentCategoryBudget
+    getCurrentCategoryBudget,
+    isLockedItemsUnderfunded
   };
 }; 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBudgetItemsSectionLogic } from '../scripts/budgetItemsSectionLogic';
 import '../styles/BudgetItemsSection.css';
 
@@ -93,8 +93,45 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
     getLockedItemsTotal,
     getLockedItemsCount,
     isCurrentCategoryOverBudget,
-    getCurrentCategoryBudget
+    getCurrentCategoryBudget,
+    isLockedItemsUnderfunded
   } = useBudgetItemsSectionLogic(props);
+
+  const [warningMessage, setWarningMessage] = useState('All good! Your budget is on track.');
+  const [warningType, setWarningType] = useState<'success' | 'error'>('success');
+
+  useEffect(() => {
+    if (isLockedItemsUnderfunded()) {
+      const totalIncome = parseFloat(income) || 0;
+      const categories = ['needs', 'savings', 'wants'];
+      const overfunded = categories
+        .map(category => {
+          const categoryBudget = Math.floor((customPercentages[category] / 100) * totalIncome);
+          const lockedTotal = budgetItems.filter(item => item.category === category && lockedItems.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
+          if (lockedTotal > categoryBudget) {
+            return `${category.charAt(0).toUpperCase() + category.slice(1)}: locked $${lockedTotal} > budget $${categoryBudget}`;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join(', ');
+      setWarningMessage(`Cannot optimize: Locked items exceed category budget. ${overfunded}. Unlock or reduce amounts to proceed.`);
+      setWarningType('error');
+    }
+  }, [budgetItems, lockedItems, customPercentages, income]);
+
+  // Checklist requirements
+  const hasItemsInAllCategories = getEmptyCategories().length === 0;
+  const allocatedAllIncome = (parseFloat(income) - budgetItems.reduce((sum, item) => sum + item.amount, 0) === 0);
+  const noOverBudgetCategory = !hasOverBudgetCategory();
+  const noEmptyCategory = getEmptyCategories().length === 0;
+  const allRequirementsMet = canViewReport();
+
+  // Helper for locked items in current category
+  const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+  const lockedItemsInCategory = budgetItems.filter(item => item.category === currentCategory && lockedItems.has(item.id));
+  const lockedCountInCategory = lockedItemsInCategory.length;
+  const lockedTotalInCategory = lockedItemsInCategory.reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <section className="budget-items-section" id="budget-items">
@@ -207,35 +244,30 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                 </div>
               </div>
             </div>
-            <div className="allocation-tip-container">
-              <div className="allocation-tip">
-                <h4 className="tip-title">💡 Budget Setup Guide</h4>
-                <div className="tip-content">
-                  <div className="tip-step">
-                    <span className="step-number">1</span>
-                    <span className="step-text">Add items to all three categories (Needs, Savings, Wants)</span>
-                  </div>
-                  <div className="tip-step">
-                    <span className="step-number">2</span>
-                    <span className="step-text">Enter amounts for your items to allocate your income</span>
-                  </div>
-                  <div className="tip-step">
-                    <span className="step-number">3</span>
-                    <span className="step-text">Lock important items you don't want changed during optimization</span>
-                  </div>
-                  <div className="tip-step">
-                    <span className="step-number">4</span>
-                    <span className="step-text">Click "Optimize Budget" to automatically balance remaining funds</span>
-                  </div>
-                  <div className="tip-step">
-                    <span className="step-number">5</span>
-                    <span className="step-text">Once 100% allocated, click "View Report" for detailed analysis</span>
-                  </div>
-                </div>
-              </div>
-              <div className="allocation-tip-note">
-                <strong>💡 Tip:</strong> Items with amounts are automatically locked. Use 🔓 to unlock and edit.
-              </div>
+            <div className="allocation-tip checklist-box">
+              <h4 className="tip-title">📝 Budget Setup Checklist</h4>
+              <ul className="checklist small-text">
+                <li className={`checklist-item${hasItemsInAllCategories ? ' completed' : ''}`}>
+                  <span className="checkbox">{hasItemsInAllCategories ? '✅' : '⬜'}</span>
+                  <span className="checklist-text">Add at least 1 item to each category (Needs, Savings, Wants)</span>
+                </li>
+                <li className={`checklist-item${allocatedAllIncome ? ' completed' : ''}`}>
+                  <span className="checkbox">{allocatedAllIncome ? '✅' : '⬜'}</span>
+                  <span className="checklist-text">Allocate 100% of your income</span>
+                </li>
+                <li className={`checklist-item${noOverBudgetCategory ? ' completed' : ''}`}>
+                  <span className="checkbox">{noOverBudgetCategory ? '✅' : '⬜'}</span>
+                  <span className="checklist-text">No category is over budget</span>
+                </li>
+                <li className={`checklist-item${noEmptyCategory ? ' completed' : ''}`}>
+                  <span className="checkbox">{noEmptyCategory ? '✅' : '⬜'}</span>
+                  <span className="checklist-text">No category is empty</span>
+                </li>
+                <li className={`checklist-item${allRequirementsMet ? ' completed' : ''}`}>
+                  <span className="checkbox">{allRequirementsMet ? '✅' : '⬜'}</span>
+                  <span className="checklist-text">All requirements met! "Optimize & View Report" is enabled</span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -315,9 +347,25 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                       <>
                         <button
                           className={`action-icon lock-icon ${!canLockItem(item) ? 'disabled' : ''}`}
-                          onClick={() => canLockItem(item) && handleLockToggle(item.id)}
-                          title={getLockButtonTitle(item)}
+                          onClick={() => {
+                            if (!canLockItem(item)) {
+                              setWarningMessage(getLockButtonTitle(item));
+                              setWarningType('error');
+                            } else {
+                              handleLockToggle(item.id);
+                            }
+                          }}
                           disabled={!canLockItem(item)}
+                          onMouseEnter={() => {
+                            if (!canLockItem(item)) {
+                              setWarningMessage(getLockButtonTitle(item));
+                              setWarningType('error');
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            setWarningMessage('All good! Your budget is on track.');
+                            setWarningType('success');
+                          }}
                         >
                           🔒
                         </button>
@@ -340,6 +388,16 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                       className={`item-name-input ${lockedItems.has(item.id) ? 'locked-input' : ''}`}
                       style={{ color: getCategoryColor(item.category) }}
                       disabled={lockedItems.has(item.id)}
+                      onMouseEnter={() => {
+                        if (isItemNameEmpty(item.id)) {
+                          setWarningMessage('Enter item name first');
+                          setWarningType('error');
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setWarningMessage('All good! Your budget is on track.');
+                        setWarningType('success');
+                      }}
                     />
                   </div>
                   <div className="table-cell item-amount">
@@ -347,12 +405,12 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                       <span className="dollar-sign">$</span>
                       <input
                         type="number"
-                        value={item.amount || ''}
-                        onChange={(e) => handleItemAmountChange(item.id, parseFloat(e.target.value) || 0)}
+                        value={item.amount ? Math.round(item.amount) : ''}
+                        onChange={(e) => handleItemAmountChange(item.id, Math.round(parseFloat(e.target.value)) || 0)}
                         onBlur={() => clearCurrentInputValue(item.id)}
                         placeholder="0"
                         min="0"
-                        step="0.01"
+                        step="1"
                         className={`item-amount-input ${lockedItems.has(item.id) ? 'locked-input' : ''} ${isItemOverBudget(item.id) ? 'error-input' : ''} ${isItemNameEmpty(item.id) ? 'disabled-input' : ''}`}
                         disabled={lockedItems.has(item.id) || isItemNameEmpty(item.id)}
                         title={isItemNameEmpty(item.id) ? 'Enter item name first' : getItemValidationError(item.id)}
@@ -375,17 +433,28 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                   <div className="table-cell table-actions-cell">
                     <button
                       className={`action-icon check-icon ${isCurrentCategoryOverBudget() ? 'disabled' : ''}`}
-                      onClick={handleAddItem}
-                      title={isCurrentCategoryOverBudget() ? 
-                        `Cannot add: ${circleOrder[0].charAt(0).toUpperCase() + circleOrder[0].slice(1)} category is over budget` : 
-                        (emptyRowData.amount > 0 ? "Add and lock item" : "Add item")
-                      }
+                      onClick={() => handleAddItem((msg) => { setWarningMessage(msg); setWarningType('error'); })}
                       disabled={isCurrentCategoryOverBudget()}
+                      onMouseEnter={() => {
+                        if (isCurrentCategoryOverBudget()) {
+                          setWarningMessage(`Cannot add: ${circleOrder[0].charAt(0).toUpperCase() + circleOrder[0].slice(1)} category is over budget`);
+                          setWarningType('error');
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setWarningMessage('All good! Your budget is on track.');
+                        setWarningType('success');
+                      }}
                     >
                       {emptyRowData.amount > 0 ? '🔒' : (
                         <img src="/images/icons/check-mark.png" alt="Add" className="action-icon-img" />
                       )}
                     </button>
+                    {isCurrentCategoryOverBudget() && (
+                      <div className="custom-tooltip">
+                        {`Cannot add: ${circleOrder[0].charAt(0).toUpperCase() + circleOrder[0].slice(1)} category is over budget`}
+                      </div>
+                    )}
                     <button
                       className="action-icon x-icon"
                       onClick={handleClearEmptyRow}
@@ -399,6 +468,11 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                       type="text"
                       value={emptyRowData.name}
                       onChange={(e) => handleEmptyRowNameChange(e.target.value)}
+                      onBlur={() => {
+                        if (!emptyRowData.name.trim()) {
+                          handleClearEmptyRow();
+                        }
+                      }}
                       placeholder="Enter item name..."
                       className="item-name-input"
                       style={{ color: getCategoryColor(circleOrder[0] as 'needs' | 'savings' | 'wants') }}
@@ -409,11 +483,11 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                       <span className="dollar-sign">$</span>
                       <input
                         type="number"
-                        value={emptyRowData.amount || ''}
-                        onChange={(e) => handleEmptyRowAmountChange(parseFloat(e.target.value) || 0)}
+                        value={emptyRowData.amount ? Math.round(emptyRowData.amount) : ''}
+                        onChange={(e) => handleEmptyRowAmountChange(Math.round(parseFloat(e.target.value)) || 0)}
                         placeholder="0"
                         min="0"
-                        step="0.01"
+                        step="1"
                         className={`item-amount-input ${validateEmptyRowBudgetLimit() ? 'error-input' : ''} ${isEmptyRowNameEmpty() ? 'disabled-input' : ''}`}
                         disabled={isEmptyRowNameEmpty()}
                         title={isEmptyRowNameEmpty() ? 'Enter item name first' : getEmptyRowValidationError()}
@@ -440,7 +514,8 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                     if (isCurrentCategoryOverBudget()) {
                       const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
                       const categoryBudget = getCurrentCategoryBudget();
-                      alert(`Cannot add more items: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category is over budget ($${categoryBudget.toFixed(2)}). Please reduce existing amounts or optimize your budget first.`);
+                      setWarningMessage(`Cannot add more items: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category is over budget ($${Math.round(categoryBudget)}). Please reduce existing amounts or optimize your budget first.`);
+                      setWarningType('error');
                       return;
                     }
                     
@@ -479,12 +554,6 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
 
           {/* Row 4: Allocation Info */}
           <div className="budget-allocation-row">
-            <div className="interactive-guide">
-              <h4 className="guide-title">🎯 Smart Guide</h4>
-              <div className="guide-content">
-                {getInteractiveGuide()}
-              </div>
-            </div>
             <div className="allocation-right">
               <div className="allocation-info-box">
                 <div className="allocation-info-header">
@@ -495,7 +564,7 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                 <h4 className="allocation-info-title">Remaining to Allocate</h4>
                 </div>
                 <div className="allocation-info-value">
-                  ${getRemainingAmount()}
+                  ${Math.round(parseFloat(getRemainingAmount()))}
                 </div>
               </div>
               <div className="allocation-info-box">
@@ -507,7 +576,7 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                 <h4 className="allocation-info-title">Allocated Percentage</h4>
                 </div>
                 <div className="allocation-info-value">
-                  {getGlobalAllocatedPercentage()}%
+                  {Math.round(parseFloat(getGlobalAllocatedPercentage()))}%
                 </div>
               </div>
               <div className="allocation-info-box">
@@ -516,10 +585,10 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                     className="allocation-color-indicator"
                     style={{ backgroundColor: '#FFD700' }}
                   ></div>
-                <h4 className="allocation-info-title">Locked Items ({getLockedItemsCount()})</h4>
+                <h4 className="allocation-info-title">Locked Items ({lockedCountInCategory})</h4>
                 </div>
                 <div className="allocation-info-value">
-                  ${getLockedItemsTotal()}
+                  ${lockedTotalInCategory}
                 </div>
               </div>
             </div>
@@ -529,27 +598,18 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
           <div className="budget-actions">
             <div className="action-buttons-container">
               <button 
-                className={`view-report-btn ${!canViewReport() ? 'disabled' : ''}`}
-                disabled={!canViewReport()}
-                title={!canViewReport() ? 'Complete your budget setup first' : 'Optimize budget and view report'}
+                className={`view-report-btn ${!allRequirementsMet ? 'disabled' : ''}`}
+                disabled={!allRequirementsMet}
                 onClick={() => {
-                  if (canViewReport()) {
-                    // First, automatically optimize the budget
+                  if (allRequirementsMet) {
                     handleAutoFix();
-                    
-                    // Small delay to allow optimization to complete
                     setTimeout(() => {
-                      // Enable scrolling temporarily
                       document.body.style.overflow = 'auto';
                       document.documentElement.style.overflow = 'auto';
-                      
-                      // Scroll to report section
                       const reportSection = document.getElementById('report');
                       if (reportSection) {
                         reportSection.scrollIntoView({ behavior: 'smooth' });
                       }
-                      
-                      // Re-disable scrolling after animation
                       setTimeout(() => {
                         document.body.style.overflow = 'hidden';
                         document.documentElement.style.overflow = 'hidden';
@@ -561,36 +621,29 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                 <span className="btn-icon">📊</span>
                 <span className="btn-text">Optimize & View Report</span>
               </button>
-              <button className="optimize-btn" onClick={handleAutoFix}>
+              {!allRequirementsMet && (
+                <div className="custom-tooltip">
+                  {hasOverBudgetCategory() && `Cannot view report: ${getOverBudgetCategories().map(cat => cat.charAt(0).toUpperCase() + cat.slice(1)).join(', ')} ${getOverBudgetCategories().length === 1 ? 'is' : 'are'} over budget.`}
+                  {hasEmptyCategory() && `Cannot view report: ${getEmptyCategories().map(cat => cat.charAt(0).toUpperCase() + cat.slice(1)).join(', ')} ${getEmptyCategories().length === 1 ? 'has' : 'have'} no items added.`}
+                  {!hasOverBudgetCategory() && !hasEmptyCategory() && 'Complete your budget setup first'}
+                </div>
+              )}
+              <button className="optimize-btn" onClick={handleAutoFix} disabled={isLockedItemsUnderfunded()} aria-disabled={isLockedItemsUnderfunded()}>
                 <span className="btn-icon">✨</span>
                 <span className="btn-text">Optimize Budget</span>
               </button>
-            </div>
-            {!canViewReport() && (
-              <div className="budget-warning">
-                <span className="warning-icon">⚠️</span>
-                <div className="warning-content">
-                  {hasOverBudgetCategory() && (
-                    <p className="warning-text">
-                      Cannot view report: {getOverBudgetCategories().map(cat => cat.charAt(0).toUpperCase() + cat.slice(1)).join(', ')} {getOverBudgetCategories().length === 1 ? 'is' : 'are'} over budget.
-                    </p>
-                  )}
-                  {hasEmptyCategory() && (
-                    <p className="warning-text">
-                      Cannot view report: {getEmptyCategories().map(cat => cat.charAt(0).toUpperCase() + cat.slice(1)).join(', ')} {getEmptyCategories().length === 1 ? 'has' : 'have'} no items added.
-                    </p>
-                  )}
-                  <p className="warning-suggestion">
-                    {hasOverBudgetCategory() && hasEmptyCategory() 
-                      ? "Click \"Optimize & View Report\" to automatically fill empty categories and balance over-budget items."
-                      : hasOverBudgetCategory()
-                      ? "Click \"Optimize & View Report\" to automatically adjust your allocations and balance your budget."
-                      : "Add items to empty categories."
-                    }
-                  </p>
-                </div>
+              {/* allocation-tip-note moved here */}
+              <div className="allocation-tip-note">
+                <strong>💡 Tip:</strong> Items with amounts are automatically locked. Use 🔓 to unlock and edit.
               </div>
-            )}
+            </div>
+          </div>
+          {/* Budget warning now as a new row below budget-actions */}
+          <div className={`budget-warning budget-warning-row ${warningType === 'success' ? 'success' : 'error'}`}>
+            <span className="warning-icon">{warningType === 'success' ? '✅' : '⚠️'}</span>
+            <div className="warning-content">
+              <p className="warning-text">{warningMessage}</p>
+            </div>
           </div>
         </div>
       </div>
