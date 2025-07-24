@@ -102,7 +102,7 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
 
   useEffect(() => {
     if (isLockedItemsUnderfunded()) {
-      const totalIncome = parseFloat(income) || 0;
+      const totalIncome = parseInt(income) || 0;
       const categories = ['needs', 'savings', 'wants'];
       const overfunded = categories
         .map(category => {
@@ -120,12 +120,26 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
     }
   }, [budgetItems, lockedItems, customPercentages, income]);
 
-  // Checklist requirements
+  // Checklist requirements - use the same logic as the displayed values
   const hasItemsInAllCategories = getEmptyCategories().length === 0;
-  const allocatedAllIncome = (parseFloat(income) - budgetItems.reduce((sum, item) => sum + item.amount, 0) === 0);
+  const remainingAmount = Math.round(parseFloat(getRemainingAmount()));
+  const allocatedPercentage = Math.round(parseFloat(getGlobalAllocatedPercentage()));
+  const allocatedAllIncome = (remainingAmount === 0 && allocatedPercentage === 100);
   const noOverBudgetCategory = !hasOverBudgetCategory();
-  const noEmptyCategory = getEmptyCategories().length === 0;
-  const allRequirementsMet = canViewReport();
+  const noLockedItemsUnderfunded = !isLockedItemsUnderfunded();
+  const allRequirementsMet = hasItemsInAllCategories && allocatedAllIncome && noOverBudgetCategory && noLockedItemsUnderfunded;
+
+  // Debug log
+  console.log('Checklist Debug:', {
+    remainingAmount,
+    allocatedPercentage,
+    hasItemsInAllCategories,
+    allocatedAllIncome,
+    noOverBudgetCategory,
+    noLockedItemsUnderfunded,
+    allRequirementsMet,
+    canViewReport: canViewReport()
+  });
 
   // Helper for locked items in current category
   const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
@@ -259,9 +273,9 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                   <span className="checkbox">{noOverBudgetCategory ? '✅' : '⬜'}</span>
                   <span className="checklist-text">No category is over budget</span>
                 </li>
-                <li className={`checklist-item${noEmptyCategory ? ' completed' : ''}`}>
-                  <span className="checkbox">{noEmptyCategory ? '✅' : '⬜'}</span>
-                  <span className="checklist-text">No category is empty</span>
+                <li className={`checklist-item${noLockedItemsUnderfunded ? ' completed' : ''}`}>
+                  <span className="checkbox">{noLockedItemsUnderfunded ? '✅' : '⬜'}</span>
+                  <span className="checklist-text">No locked items exceed category budget</span>
                 </li>
                 <li className={`checklist-item${allRequirementsMet ? ' completed' : ''}`}>
                   <span className="checkbox">{allRequirementsMet ? '✅' : '⬜'}</span>
