@@ -23,13 +23,21 @@ const App = () => {
   });
   const [income, setIncome] = useState('3489');
   const [budgetItems, setBudgetItems] = useState([
-    // Example data to show connection is working
-    { id: 1, name: 'Rent', amount: 1200, percentage: 0, category: 'needs' },
-    { id: 2, name: 'Groceries', amount: 400, percentage: 0, category: 'needs' },
-    { id: 3, name: 'Emergency Fund', amount: 500, percentage: 0, category: 'savings' },
-    { id: 4, name: '401k', amount: 300, percentage: 0, category: 'savings' },
-    { id: 5, name: 'Entertainment', amount: 200, percentage: 0, category: 'wants' },
-    { id: 6, name: 'Dining Out', amount: 150, percentage: 0, category: 'wants' }
+    // Default Needs items
+    { id: 1, name: 'Groceries', amount: 209, percentage: 0, category: 'needs' }, // 6%
+    { id: 2, name: 'Car payments & fuel', amount: 262, percentage: 0, category: 'needs' }, // 7.5%
+    { id: 3, name: 'Minimum debt payments', amount: 140, percentage: 0, category: 'needs' }, // 4%
+    
+    // Default Savings items
+    { id: 4, name: 'Emergency fund (3–6 months of expenses)', amount: 140, percentage: 0, category: 'savings' }, // 4%
+    { id: 5, name: 'Retirement savings (RRSP, TFSA)', amount: 140, percentage: 0, category: 'savings' }, // 4%
+    { id: 6, name: 'Investing (stocks, ETFs, mutual funds)', amount: 140, percentage: 0, category: 'savings' }, // 4%
+    
+    // Default Wants items
+    { id: 7, name: 'Dining out / takeout', amount: 209, percentage: 0, category: 'wants' }, // 6%
+    { id: 8, name: 'Entertainment', amount: 209, percentage: 0, category: 'wants' }, // 6%
+    { id: 9, name: 'Shopping for non-essentials', amount: 209, percentage: 0, category: 'wants' }, // 6%
+    { id: 10, name: 'Subscriptions', amount: 209, percentage: 0, category: 'wants' } // 6%
   ]);
 
   return (

@@ -1113,18 +1113,7 @@
   transition: all 0.2s ease;
 }
 
-.allocation-tip-note {
-  font-size: 11px;
-  color: var(--secondary-color);
-  font-family: 'Outfit', sans-serif;
-  line-height: 1.4;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  border-left: 3px solid var(--primary-color);
-  max-width: 200px;
-  flex-shrink: 0;
-}
+/* Old allocation-tip-note styles removed - now using TipsBanner component */
 
 .interactive-guide {
   background: rgba(255, 255, 255, 0.08);

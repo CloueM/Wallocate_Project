@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useBudgetItemsSectionLogic } from '../scripts/budgetItemsSectionLogic';
+import TipsBanner from './TipsBanner';
 import '../styles/BudgetItemsSection.css';
 
 interface BudgetItem {
@@ -786,10 +787,8 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                 <span className="btn-icon">✨</span>
                 <span className="btn-text">Optimize Budget</span>
               </button>
-              {/* allocation-tip-note moved here */}
-              <div className="allocation-tip-note">
-                <strong>💡 Tip:</strong> Items with amounts are automatically locked. Use 🔓 to unlock and edit.
-              </div>
+              {/* Tips banner with rotating advice */}
+              <TipsBanner />
             </div>
           </div>
           {/* Budget warning now as a new row below budget-actions */}
