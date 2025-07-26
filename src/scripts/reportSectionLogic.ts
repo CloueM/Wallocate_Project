@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 interface BudgetItem {
   id: number;
@@ -27,339 +27,358 @@ interface ReportSectionProps {
   budgetItems: BudgetItem[];
 }
 
-interface SmartTip {
-  id: string;
-  type: 'success' | 'warning' | 'info' | 'critical';
-  category: 'budgeting' | 'saving' | 'investing' | 'debt' | 'emergency' | 'allocation';
-  title: string;
-  message: string;
-  specificItems?: string[];
-  priority: number; // 1-10
-}
-
 export const useReportSectionLogic = (props: ReportSectionProps) => {
   const { selectedPlan, customPercentages, income, budgetItems } = props;
-  const [selectedTimeframe, setSelectedTimeframe] = useState<'month' | 'quarter' | 'year'>('month');
-
+  
   const totalIncome = parseInt(income) || 0;
-  const totalAllocated = budgetItems.reduce((sum, item) => sum + item.amount, 0);
-  const unallocated = totalIncome - totalAllocated;
-
-  // Smart Tips Generator based on actual budget data
-  const generateSmartTips = (): SmartTip[] => {
-    const tips: SmartTip[] = [];
+  const needsItems = budgetItems.filter(item => item.category === 'needs');
+  const savingsItems = budgetItems.filter(item => item.category === 'savings');
+  const wantsItems = budgetItems.filter(item => item.category === 'wants');
+  
+  const needsTotal = needsItems.reduce((sum, item) => sum + item.amount, 0);
+  const savingsTotal = savingsItems.reduce((sum, item) => sum + item.amount, 0);
+  const wantsTotal = wantsItems.reduce((sum, item) => sum + item.amount, 0);
+  
+  // Current Budget Analysis
+  const categoryBalance = useMemo(() => {
+    const needsPercentage = totalIncome > 0 ? (needsTotal / totalIncome) * 100 : 0;
+    const savingsPercentage = totalIncome > 0 ? (savingsTotal / totalIncome) * 100 : 0;
+    const wantsPercentage = totalIncome > 0 ? (wantsTotal / totalIncome) * 100 : 0;
     
-    // Analyze spending by category
-    const categoryTotals = budgetItems.reduce((acc, item) => {
-      acc[item.category] = (acc[item.category] || 0) + item.amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const categoryPercentages = {
-      needs: totalIncome > 0 ? (categoryTotals.needs || 0) / totalIncome * 100 : 0,
-      savings: totalIncome > 0 ? (categoryTotals.savings || 0) / totalIncome * 100 : 0,
-      wants: totalIncome > 0 ? (categoryTotals.wants || 0) / totalIncome * 100 : 0
+    const assessCategory = (actual: number, target: number) => {
+      const diff = Math.abs(actual - target);
+      if (diff <= 2) return { status: 'excellent', assessment: 'Perfect' };
+      if (diff <= 5) return { status: 'good', assessment: 'Good' };
+      if (diff <= 10) return { status: 'fair', assessment: 'Fair' };
+      return { status: 'poor', assessment: 'Needs Adjustment' };
     };
+    
+    return {
+      needs: {
+        percentage: needsPercentage.toFixed(1),
+        ...assessCategory(needsPercentage, customPercentages.needs)
+      },
+      savings: {
+        percentage: savingsPercentage.toFixed(1),
+        ...assessCategory(savingsPercentage, customPercentages.savings)
+      },
+      wants: {
+        percentage: wantsPercentage.toFixed(1),
+        ...assessCategory(wantsPercentage, customPercentages.wants)
+      },
+      recommendation: "Your budget follows a balanced approach. Consider the 50/30/20 rule as a benchmark."
+    };
+  }, [needsTotal, savingsTotal, wantsTotal, totalIncome, customPercentages]);
 
-    // 1. Emergency Fund Analysis
-    const emergencyItems = budgetItems.filter(item => 
-      item.name.toLowerCase().includes('emergency') || 
-      item.name.toLowerCase().includes('fund')
-    );
-
-    if (emergencyItems.length === 0) {
-      tips.push({
-        id: 'no-emergency-fund',
-        type: 'critical',
-        category: 'emergency',
-        title: 'Missing Emergency Fund',
-        message: 'You don\'t have an emergency fund allocated. Experts recommend 3-6 months of expenses for unexpected situations.',
-        priority: 10
-      });
-    } else {
-      const emergencyTotal = emergencyItems.reduce((sum, item) => sum + item.amount, 0);
-      const monthsOfExpenses = emergencyTotal / (categoryTotals.needs || 1);
-      
-      if (monthsOfExpenses < 3) {
-        tips.push({
-          id: 'low-emergency-fund',
-          type: 'warning',
-          category: 'emergency',
-          title: 'Boost Your Emergency Fund',
-          message: `Your emergency fund of $${emergencyTotal} covers only ${monthsOfExpenses.toFixed(1)} months of needs. Consider increasing it to cover 3-6 months.`,
-          specificItems: emergencyItems.map(item => item.name),
-          priority: 8
-        });
-      }
-    }
-
-    // 2. Savings Rate Analysis
-    if (categoryPercentages.savings < 10) {
-      const currentSavingsItems = budgetItems.filter(item => item.category === 'savings');
-      tips.push({
-        id: 'low-savings-rate',
-        type: 'warning',
-        category: 'saving',
-        title: 'Increase Your Savings Rate',
-        message: `Your savings rate is ${categoryPercentages.savings.toFixed(1)}%. Financial experts recommend saving at least 20% of income.`,
-        specificItems: currentSavingsItems.map(item => `${item.name}: $${item.amount}`),
-        priority: 9
-      });
-    } else if (categoryPercentages.savings >= 20) {
-      tips.push({
-        id: 'excellent-savings',
-        type: 'success',
-        category: 'saving',
-        title: 'Excellent Savings Rate!',
-        message: `Your ${categoryPercentages.savings.toFixed(1)}% savings rate is fantastic! You're building a strong financial future.`,
-        priority: 6
-      });
-    }
-
-    // 3. Budget Balance Analysis
-    if (totalAllocated > totalIncome) {
-      const overage = totalAllocated - totalIncome;
-      const highestCategory = Object.entries(categoryTotals)
-        .sort(([,a], [,b]) => (b as number) - (a as number))[0];
-      
-      tips.push({
-        id: 'over-budget',
-        type: 'critical',
-        category: 'budgeting',
-        title: 'Budget Exceeds Income',
-        message: `You're spending $${overage.toFixed(2)} more than your income. Consider reducing your ${highestCategory[0]} expenses.`,
-        priority: 10
-      });
-    }
-
-    // 4. High-Risk Spending Analysis
-    const highAmountItems = budgetItems
-      .filter(item => item.amount > totalIncome * 0.15) // More than 15% of income
-      .sort((a, b) => b.amount - a.amount);
-
-    if (highAmountItems.length > 0 && highAmountItems[0].category === 'wants') {
-      tips.push({
-        id: 'high-wants-spending',
-        type: 'warning',
-        category: 'budgeting',
-        title: 'High Discretionary Spending',
-        message: `"${highAmountItems[0].name}" ($${highAmountItems[0].amount}) is ${((highAmountItems[0].amount/totalIncome)*100).toFixed(1)}% of your income. Consider if this aligns with your financial goals.`,
-        specificItems: [highAmountItems[0].name],
-        priority: 7
-      });
-    }
-
-    // 5. Needs Category Analysis
-    if (categoryPercentages.needs > 60) {
-      const needsItems = budgetItems.filter(item => item.category === 'needs');
-      const highestNeed = needsItems.sort((a, b) => b.amount - a.amount)[0];
-      
-      tips.push({
-        id: 'high-needs-spending',
-        type: 'info',
-        category: 'budgeting',
-        title: 'High Essential Expenses',
-        message: `Your needs spending (${categoryPercentages.needs.toFixed(1)}%) is above the recommended 50%. Look for ways to optimize costs like "${highestNeed?.name}".`,
-        specificItems: needsItems.map(item => `${item.name}: $${item.amount}`),
-        priority: 6
-      });
-    }
-
-    // 6. Investment Opportunities
-    const investmentItems = budgetItems.filter(item => 
-      item.name.toLowerCase().includes('invest') || 
-      item.name.toLowerCase().includes('401k') ||
-      item.name.toLowerCase().includes('ira') ||
-      item.name.toLowerCase().includes('stock')
-    );
-
-    if (investmentItems.length === 0 && categoryPercentages.savings > 15) {
-      tips.push({
-        id: 'consider-investing',
-        type: 'info',
-        category: 'investing',
-        title: 'Consider Investment Options',
-        message: 'You have good savings habits! Consider allocating some savings to investments like 401k, IRA, or index funds for long-term growth.',
-        priority: 5
-      });
-    }
-
-    // 7. Debt Analysis
+  const riskAnalysis = useMemo(() => {
+    const emergencyFund = savingsItems.find(item => 
+      item.name.toLowerCase().includes('emergency')
+    )?.amount || 0;
+    
+    const monthlyExpenses = needsTotal + wantsTotal;
+    const emergencyMonths = monthlyExpenses > 0 ? emergencyFund / monthlyExpenses : 0;
+    
     const debtItems = budgetItems.filter(item => 
-      item.name.toLowerCase().includes('debt') ||
-      item.name.toLowerCase().includes('loan') ||
-      item.name.toLowerCase().includes('credit') ||
+      item.name.toLowerCase().includes('debt') || 
       item.name.toLowerCase().includes('payment')
     );
-
-    if (debtItems.length > 0) {
-      const totalDebt = debtItems.reduce((sum, item) => sum + item.amount, 0);
-      const debtPercentage = (totalDebt / totalIncome) * 100;
-      
-      if (debtPercentage > 20) {
-        tips.push({
-          id: 'high-debt-payments',
-          type: 'warning',
-          category: 'debt',
-          title: 'High Debt Payments',
-          message: `Debt payments (${debtPercentage.toFixed(1)}% of income) are high. Consider debt consolidation or avalanche method to pay off high-interest debt first.`,
-          specificItems: debtItems.map(item => `${item.name}: $${item.amount}`),
-          priority: 8
-        });
-      }
-    }
-
-    // 8. Unallocated Money Tip
-    if (unallocated > totalIncome * 0.05) { // More than 5% unallocated
-      tips.push({
-        id: 'unallocated-money',
-        type: 'info',
-        category: 'allocation',
-        title: 'Optimize Unallocated Funds',
-        message: `You have $${unallocated.toFixed(2)} unallocated. Consider directing this to emergency fund, savings, or debt payments for better financial health.`,
-        priority: 7
-      });
-    }
-
-    // Sort by priority and return top 5
-    return tips.sort((a, b) => b.priority - a.priority).slice(0, 5);
-  };
-
-  // Generate smart tips based on current budget
-  const smartTips = generateSmartTips();
-
-
-
-  // Get category performance data
-  const getCategoryPerformance = () => {
-    if (totalIncome === 0) return [];
-
-         return (['needs', 'savings', 'wants'] as const).map(category => {
-      const targetPercentage = customPercentages[category];
-      const targetAmount = (targetPercentage / 100) * totalIncome;
-      const categoryItems = budgetItems.filter(item => item.category === category);
-      const actualAmount = categoryItems.reduce((sum, item) => sum + item.amount, 0);
-      const actualPercentage = totalIncome > 0 ? (actualAmount / totalIncome) * 100 : 0;
-      const variance = actualPercentage - targetPercentage;
-      const remaining = targetAmount - actualAmount;
-
-      // Find biggest expense and performers
-      const biggestExpense = categoryItems.reduce((max, item) => 
-        item.amount > max.amount ? item : max, { name: 'None', amount: 0 });
-
-      return {
-        category,
-        targetPercentage,
-        targetAmount,
-        actualAmount,
-        actualPercentage,
-        variance,
-        remaining,
-        itemCount: categoryItems.length,
-        biggestExpense,
-        status: variance > 5 ? 'over' : variance < -5 ? 'under' : 'good'
-      };
-    });
-  };
-
-  // Calculate monthly trends (now more realistic based on actual data)
-  const getMonthlyTrends = () => {
-    const currentMonth = new Date().getMonth();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const debtTotal = debtItems.reduce((sum, item) => sum + item.amount, 0);
+    const debtPercentage = totalIncome > 0 ? (debtTotal / totalIncome) * 100 : 0;
     
-    return Array.from({ length: 3 }, (_, i) => {
-      const monthIndex = (currentMonth - 2 + i + 12) % 12;
-      const variation = (Math.random() - 0.5) * 0.15; // ±7.5% variation
-      
-             const monthCategoryTotals = budgetItems.reduce((acc, item) => {
-         acc[item.category] = (acc[item.category] || 0) + item.amount;
-         return acc;
-       }, {} as Record<string, number>);
+    const stabilityScore = Math.min(100, 
+      (emergencyMonths >= 3 ? 40 : emergencyMonths * 13) +
+      (debtPercentage <= 30 ? 30 : Math.max(0, 30 - (debtPercentage - 30))) +
+      (savingsTotal / totalIncome >= 0.2 ? 30 : (savingsTotal / totalIncome) * 150)
+    );
+    
+    return {
+      emergencyFund: {
+        months: emergencyMonths.toFixed(1),
+        status: emergencyMonths >= 6 ? 'excellent' : emergencyMonths >= 3 ? 'good' : 'poor',
+        level: emergencyMonths >= 6 ? 'Excellent' : emergencyMonths >= 3 ? 'Adequate' : 'Insufficient'
+      },
+      debtLoad: {
+        percentage: debtPercentage.toFixed(1),
+        status: debtPercentage <= 20 ? 'good' : debtPercentage <= 40 ? 'fair' : 'poor',
+        level: debtPercentage <= 20 ? 'Healthy' : debtPercentage <= 40 ? 'Manageable' : 'High Risk'
+      },
+      stability: {
+        score: Math.round(stabilityScore),
+        status: stabilityScore >= 80 ? 'excellent' : stabilityScore >= 60 ? 'good' : 'poor',
+        level: stabilityScore >= 80 ? 'Stable' : stabilityScore >= 60 ? 'Moderate' : 'At Risk'
+      }
+    };
+  }, [budgetItems, needsTotal, wantsTotal, savingsItems, totalIncome]);
 
-       return {
-         month: months[monthIndex],
-         totalSpent: totalAllocated * (1 + variation),
-         needs: (monthCategoryTotals.needs || 0) * (1 + variation),
-         savings: (monthCategoryTotals.savings || 0) * (1 + variation),
-         wants: (monthCategoryTotals.wants || 0) * (1 + variation)
-       };
-    });
-  };
+  const efficiencyScore = useMemo(() => {
+    const alignmentScore = Math.max(0, 100 - Math.abs(
+      (needsTotal + savingsTotal + wantsTotal - totalIncome) / totalIncome * 100
+    ));
+    
+    const savingsRateScore = Math.min(100, (savingsTotal / totalIncome) * 500);
+    const riskScore = riskAnalysis.stability.score;
+    
+    const overall = Math.round((alignmentScore + savingsRateScore + riskScore) / 3);
+    const grade = overall >= 90 ? 'A' : overall >= 80 ? 'B' : overall >= 70 ? 'C' : overall >= 60 ? 'D' : 'F';
+    
+    return {
+      overall,
+      grade,
+      alignment: Math.round(alignmentScore),
+      savingsRate: Math.round(savingsRateScore),
+      riskManagement: riskScore,
+      improvementTip: overall >= 80 ? "Excellent work! Keep maintaining this balance." : 
+                     overall >= 60 ? "Consider increasing your savings rate for better long-term security." :
+                     "Focus on building an emergency fund and reducing high-risk spending."
+    };
+  }, [needsTotal, savingsTotal, wantsTotal, totalIncome, riskAnalysis]);
 
-  // Goal tracking (based on actual savings data)
-  const getSavingsGoals = () => {
-    const savingsAmount = budgetItems
-      .filter(item => item.category === 'savings')
+  // Financial Projections
+  const savingsGrowth = useMemo(() => {
+    const monthlySavings = savingsTotal;
+    const annualRate = 0.07; // 7% assumed return
+    const monthlyRate = annualRate / 12;
+    
+    const calculateCompoundGrowth = (months: number) => {
+      let total = 0;
+      for (let i = 0; i < months; i++) {
+        total = (total + monthlySavings) * (1 + monthlyRate);
+      }
+      return Math.round(total);
+    };
+    
+    return {
+      oneYear: calculateCompoundGrowth(12),
+      fiveYears: calculateCompoundGrowth(60),
+      tenYears: calculateCompoundGrowth(120),
+      assumedRate: '7.0'
+    };
+  }, [savingsTotal]);
+
+  const goalTimeline = useMemo(() => [
+    {
+      name: "Emergency Fund (6 months)",
+      targetAmount: (needsTotal + wantsTotal) * 6,
+      timeToAchieve: savingsTotal > 0 ? `${Math.ceil(((needsTotal + wantsTotal) * 6) / savingsTotal)} months` : "No savings allocated"
+    },
+    {
+      name: "House Down Payment (20%)",
+      targetAmount: 80000,
+      timeToAchieve: savingsTotal > 0 ? `${Math.ceil(80000 / savingsTotal)} months` : "No savings allocated"
+    },
+    {
+      name: "New Car",
+      targetAmount: 25000,
+      timeToAchieve: savingsTotal > 0 ? `${Math.ceil(25000 / savingsTotal)} months` : "No savings allocated"
+    }
+  ], [needsTotal, wantsTotal, savingsTotal]);
+
+  const retirementProjection = useMemo(() => {
+    const monthlyRetirementSavings = savingsItems
+      .filter(item => item.name.toLowerCase().includes('retirement'))
       .reduce((sum, item) => sum + item.amount, 0);
     
-    const monthlyIncome = parseInt(income) || 0;
-
-    return [
-      {
-        name: 'Emergency Fund',
-        target: monthlyIncome * 6, // 6 months of income
-        current: savingsAmount * 0.7, // Assume 70% goes to emergency fund
-        priority: 'high',
-        timeline: savingsAmount > 0 ? Math.ceil((monthlyIncome * 6 - savingsAmount * 0.7) / (savingsAmount * 0.7 / 12)) + ' months' : '∞'
-      },
-      {
-        name: 'Vacation Fund',
-        target: 3000,
-        current: savingsAmount * 0.2, // 20% to vacation
-        priority: 'medium',
-        timeline: savingsAmount > 0 ? Math.ceil((3000 - savingsAmount * 0.2) / (savingsAmount * 0.2 / 12)) + ' months' : '∞'
-      },
-      {
-        name: 'Investment Portfolio',
-        target: 25000,
-        current: savingsAmount * 0.1, // 10% to investments
-        priority: 'low',
-        timeline: savingsAmount > 0 ? Math.ceil((25000 - savingsAmount * 0.1) / (savingsAmount * 0.1 / 12)) + ' months' : '∞'
+    const yearsToRetirement = 30; // Assume 30 years
+    const annualReturn = 0.07;
+    const monthlyReturn = annualReturn / 12;
+    const months = yearsToRetirement * 12;
+    
+    let futureValue = 0;
+    for (let i = 0; i < months; i++) {
+      futureValue = (futureValue + monthlyRetirementSavings) * (1 + monthlyReturn);
+    }
+    
+    const monthlyIncome = Math.round(futureValue * 0.04 / 12); // 4% withdrawal rule
+    
+    return {
+      atAge65: Math.round(futureValue),
+      monthlyIncome,
+      readiness: {
+        status: monthlyIncome >= totalIncome * 0.8 ? 'excellent' : monthlyIncome >= totalIncome * 0.6 ? 'good' : 'poor',
+        level: monthlyIncome >= totalIncome * 0.8 ? 'On Track' : monthlyIncome >= totalIncome * 0.6 ? 'Moderate' : 'Behind'
       }
-    ];
-  };
+    };
+  }, [savingsItems, totalIncome]);
 
-  // Export data functionality
+  const emergencyFundTimeline = useMemo(() => {
+    const emergencyFund = savingsItems.find(item => 
+      item.name.toLowerCase().includes('emergency')
+    )?.amount || 0;
+    
+    const monthlyExpenses = needsTotal + wantsTotal;
+    const currentMonths = monthlyExpenses > 0 ? emergencyFund / monthlyExpenses : 0;
+    const targetAmount = monthlyExpenses * 6;
+    
+    return {
+      current: currentMonths.toFixed(1),
+      timeToTarget: emergencyFund > 0 && monthlyExpenses > 0 ? 
+        `${Math.ceil((targetAmount - emergencyFund) / emergencyFund)} months` : 
+        "Start saving now",
+      targetAmount
+    };
+  }, [savingsItems, needsTotal, wantsTotal]);
+
+  // Smart Recommendations
+  const optimizationSuggestions = useMemo(() => [
+    {
+      action: "Increase emergency fund allocation",
+      impact: "2 points to stability score"
+    },
+    {
+      action: "Reduce wants spending by $100",
+      impact: "$1,200 annual savings"
+    },
+    {
+      action: "Automate retirement contributions",
+      impact: "Better long-term security"
+    }
+  ], []);
+
+  const benchmarkComparisons = useMemo(() => [
+    {
+      rule: "50/30/20 Rule",
+      yourValue: `${((needsTotal / totalIncome) * 100).toFixed(0)}/${((wantsTotal / totalIncome) * 100).toFixed(0)}/${((savingsTotal / totalIncome) * 100).toFixed(0)}`,
+      idealValue: "50/30/20",
+      status: Math.abs((needsTotal / totalIncome) * 100 - 50) <= 5 ? 'good' : 'fair',
+      assessment: Math.abs((needsTotal / totalIncome) * 100 - 50) <= 5 ? 'Good Match' : 'Needs Adjustment'
+    },
+    {
+      rule: "Emergency Fund",
+      yourValue: `${riskAnalysis.emergencyFund.months} months`,
+      idealValue: "6 months",
+      status: parseFloat(riskAnalysis.emergencyFund.months) >= 6 ? 'excellent' : 'poor',
+      assessment: parseFloat(riskAnalysis.emergencyFund.months) >= 6 ? 'Excellent' : 'Build More'
+    }
+  ], [needsTotal, wantsTotal, savingsTotal, totalIncome, riskAnalysis]);
+
+  const riskWarnings = useMemo(() => {
+    const warnings = [];
+    
+    if (parseFloat(riskAnalysis.emergencyFund.months) < 3) {
+      warnings.push({
+        severity: 'high',
+        message: "Emergency fund is below 3 months of expenses",
+        recommendedAction: "Prioritize building emergency savings"
+      });
+    }
+    
+    if (parseFloat(riskAnalysis.debtLoad.percentage) > 40) {
+      warnings.push({
+        severity: 'high',
+        message: "Debt payments exceed 40% of income",
+        recommendedAction: "Consider debt consolidation strategies"
+      });
+    }
+    
+    if (savingsTotal / totalIncome < 0.1) {
+      warnings.push({
+        severity: 'medium',
+        message: "Savings rate is below 10%",
+        recommendedAction: "Gradually increase savings allocation"
+      });
+    }
+    
+    return warnings.length > 0 ? warnings : [{
+      severity: 'low',
+      message: "No major financial risks detected",
+      recommendedAction: "Continue current financial practices"
+    }];
+  }, [riskAnalysis, savingsTotal, totalIncome]);
+
+  const goalPriority = useMemo(() => [
+    {
+      name: "Build Emergency Fund",
+      reason: "Foundation of financial security"
+    },
+    {
+      name: "Pay Off High-Interest Debt",
+      reason: "Reduces financial burden"
+    },
+    {
+      name: "Increase Retirement Savings",
+      reason: "Compound interest benefits"
+    },
+    {
+      name: "Save for Major Purchases",
+      reason: "Avoid future debt"
+    }
+  ], []);
+
+  // What-If Scenarios (simplified with static values for now)
+  const [incomeChangePercentage, setIncomeChangePercentage] = useState(0);
+  const [expenseChangeAmount, setExpenseChangeAmount] = useState(0);
+  const [savingsRatePercentage, setSavingsRatePercentage] = useState(20);
+
+  const incomeChangeImpact = useMemo(() => ({
+    percentage: incomeChangePercentage,
+    newIncome: Math.round(totalIncome * (1 + incomeChangePercentage / 100)),
+    savingsImpact: Math.round(totalIncome * (incomeChangePercentage / 100) * 0.3) // Assume 30% goes to savings
+  }), [incomeChangePercentage, totalIncome]);
+
+  const expenseAdjustments = useMemo(() => ({
+    amount: expenseChangeAmount,
+    remainingFunds: totalIncome - needsTotal - wantsTotal - expenseChangeAmount,
+    healthImpact: {
+      status: expenseChangeAmount > 200 ? 'negative' : expenseChangeAmount < -200 ? 'positive' : 'neutral',
+      change: expenseChangeAmount > 200 ? 'Decreased' : expenseChangeAmount < -200 ? 'Improved' : 'Stable'
+    }
+  }), [expenseChangeAmount, totalIncome, needsTotal, wantsTotal]);
+
+  const savingsRateChanges = useMemo(() => {
+    const newMonthlySavings = totalIncome * (savingsRatePercentage / 100);
+    const tenYearProjection = newMonthlySavings * 12 * 10 * 1.07; // Simplified compound calculation
+    
+    return {
+      rate: savingsRatePercentage,
+      tenYearProjection: Math.round(tenYearProjection),
+      retirementImpact: {
+        status: savingsRatePercentage >= 20 ? 'positive' : 'negative',
+        level: savingsRatePercentage >= 20 ? 'On Track' : 'Behind'
+      }
+    };
+  }, [savingsRatePercentage, totalIncome]);
+
+  // Export functions
   const exportToPDF = () => {
-    // Would integrate with a PDF library like jsPDF
     console.log('Exporting to PDF...');
-    alert('PDF export feature would be implemented here');
+    // TODO: Implement PDF export
   };
 
   const exportToCSV = () => {
-    const csvData = budgetItems.map(item => ({
-      Category: item.category,
-      Item: item.name,
-      Amount: item.amount,
-      Percentage: item.percentage
-    }));
-    
-    const csvContent = [
-      Object.keys(csvData[0]).join(','),
-      ...csvData.map(row => Object.values(row).join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'budget-report.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
+    console.log('Exporting to CSV...');
+    // TODO: Implement CSV export
   };
 
   return {
-    selectedTimeframe,
-    setSelectedTimeframe,
-
-    categoryPerformance: getCategoryPerformance(),
-    smartTips: smartTips,
-    monthlyTrends: getMonthlyTrends(),
-    savingsGoals: getSavingsGoals(),
+    // Current Budget Analysis
+    categoryBalance,
+    riskAnalysis,
+    efficiencyScore,
+    
+    // Financial Projections
+    savingsGrowth,
+    goalTimeline,
+    retirementProjection,
+    emergencyFundTimeline,
+    
+    // Smart Recommendations
+    optimizationSuggestions,
+    benchmarkComparisons,
+    riskWarnings,
+    goalPriority,
+    
+    // What-If Scenarios
+    incomeChangeImpact,
+    expenseAdjustments,
+    savingsRateChanges,
+    
+    // What-If Scenario Controls
+    setIncomeChangePercentage,
+    setExpenseChangeAmount,
+    setSavingsRatePercentage,
+    
+    // Export functions
     exportToPDF,
-    exportToCSV,
-    totalIncome: parseInt(income) || 0,
-    totalAllocated: budgetItems.reduce((sum, item) => sum + item.amount, 0),
-    unallocated: (parseInt(income) || 0) - budgetItems.reduce((sum, item) => sum + item.amount, 0)
+    exportToCSV
   };
 }; 
