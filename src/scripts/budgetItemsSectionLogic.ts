@@ -86,32 +86,6 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   const [budgetValidationErrors, setBudgetValidationErrors] = useState<{ [key: number]: string }>({});
 
   // Track cursor position and hovered elements
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setCursorPosition({ x: e.clientX, y: e.clientY });
-      
-      // Detect what element is being hovered
-      const target = e.target as HTMLElement;
-      if (target) {
-        if (target.closest('.needs-circle')) {
-          setHoveredElement('needs-circle');
-        } else if (target.closest('.savings-circle')) {
-          setHoveredElement('savings-circle');
-        } else if (target.closest('.wants-circle')) {
-          setHoveredElement('wants-circle');
-        } else if (target.closest('.budget-items-table')) {
-          setHoveredElement('budget-table');
-        } else if (target.closest('.view-report-btn')) {
-          setHoveredElement('view-report-btn');
-        } else {
-          setHoveredElement('');
-        }
-      }
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    return () => document.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   useEffect(() => {
     const amount = budgetItems.reduce((sum, item) => sum + item.amount, 0);
@@ -335,22 +309,30 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     return allocatedPercentage.toFixed(2);
   };
 
-  // Get color indicator for remaining amount (category-specific)
+  // Get color indicator for remaining amount (muted professional colors)
   const getRemainingAmountColor = (): string => {
-    const currentCategory = circleOrder[0];
     const remaining = parseFloat(getRemainingAmount());
-    const totalIncome = parseInt(income);
-    const categoryPercentage = customPercentages[currentCategory as keyof typeof customPercentages];
-    const categoryAmount = calculatePercentageToDollar(categoryPercentage, totalIncome);
+    const totalIncome = parseInt(income) || 0;
     
-    // Calculate relative remaining as percentage of this category's budget
-    const remainingPercent = categoryAmount > 0 ? (remaining / categoryAmount) * 100 : 0;
+    if (totalIncome === 0) return 'rgba(108, 117, 125, 0.4)'; // Muted gray for no income
     
-    if (remaining < -5) return '#ff4757'; // Red for over-allocated
-    if (remaining < 0) return '#ffa726'; // Orange for slightly over
-    if (Math.abs(remainingPercent) <= 5) return '#2ed573'; // Green for close to perfect (within 5%)
-    if (Math.abs(remainingPercent) <= 15) return '#ffa726'; // Orange for moderate difference
-    return '#ff4757'; // Red for significant difference
+    const remainingPercent = (remaining / totalIncome) * 100;
+    
+    // Over-allocated (negative remaining)
+    if (remaining < -50) return 'rgba(220, 53, 69, 0.3)'; // Muted dark red for severely over-allocated
+    if (remaining < -20) return 'rgba(220, 53, 69, 0.25)'; // Muted red for significantly over-allocated
+    if (remaining < 0) return 'rgba(255, 193, 7, 0.3)'; // Muted orange for slightly over-allocated
+    
+    // Perfect allocation
+    if (remaining === 0) return 'rgba(40, 167, 69, 0.3)'; // Muted green for exactly allocated
+    
+    // Under-allocated (positive remaining)
+    if (remainingPercent <= 1) return 'rgba(40, 167, 69, 0.25)'; // Muted teal for nearly perfect (within 1%)
+    if (remainingPercent <= 5) return 'rgba(23, 162, 184, 0.25)'; // Muted light blue for very close (within 5%)
+    if (remainingPercent <= 10) return 'rgba(111, 66, 193, 0.25)'; // Muted purple for close (within 10%)
+    if (remainingPercent <= 20) return 'rgba(255, 193, 7, 0.25)'; // Muted yellow for moderate remaining
+    
+    return 'rgba(232, 62, 140, 0.25)'; // Muted pink for significant remaining amount
   };
 
   // Get color indicator for allocated percentage (category-specific)
@@ -367,10 +349,30 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
   const getGlobalAllocatedPercentageColor = (): string => {
     const percentage = parseFloat(getGlobalAllocatedPercentage());
     
-    // Stricter ranges for global allocation - should be exactly 100%
-    if (percentage >= 99.5 && percentage <= 100.5) return '#2ed573'; // Green for perfect allocation
-    if (percentage >= 95 && percentage <= 105) return '#ffa726'; // Orange for close to perfect
-    return '#ff4757'; // Red for poor allocation
+    // Muted color indicators for allocation percentage
+    if (percentage === 100) return 'rgba(40, 167, 69, 0.3)'; // Muted green for exactly 100%
+    if (percentage >= 99 && percentage <= 101) return 'rgba(40, 167, 69, 0.25)'; // Muted teal for very close to 100%
+    if (percentage >= 95 && percentage <= 105) return 'rgba(23, 162, 184, 0.25)'; // Muted light blue for close to 100%
+    if (percentage >= 90 && percentage <= 110) return 'rgba(111, 66, 193, 0.25)'; // Muted purple for acceptable range
+    if (percentage >= 80 && percentage <= 120) return 'rgba(255, 193, 7, 0.25)'; // Muted yellow for moderate difference
+    if (percentage >= 70 && percentage <= 130) return 'rgba(255, 193, 7, 0.3)'; // Muted orange for concerning difference
+    if (percentage > 130) return 'rgba(220, 53, 69, 0.3)'; // Muted dark red for severely over-allocated
+    if (percentage < 70) return 'rgba(232, 62, 140, 0.25)'; // Muted pink for severely under-allocated
+    return 'rgba(220, 53, 69, 0.25)'; // Muted default red for other poor allocations
+  };
+
+  const getLockedItemsColor = (): string => {
+    const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+    const totalIncome = parseInt(income) || 0;
+    const categoryBudget = Math.floor((customPercentages[currentCategory] / 100) * totalIncome);
+    const lockedItemsInCategory = budgetItems.filter(item => item.category === currentCategory && lockedItems.has(item.id));
+    const lockedTotal = lockedItemsInCategory.reduce((sum, item) => sum + item.amount, 0);
+    
+    if (lockedItemsInCategory.length === 0) return 'rgba(108, 117, 125, 0.3)'; // Muted gray for no locked items
+    if (lockedTotal > categoryBudget) return 'rgba(220, 53, 69, 0.3)'; // Muted red for over budget
+    if (lockedTotal > categoryBudget * 0.8) return 'rgba(255, 193, 7, 0.3)'; // Muted orange for high allocation
+    if (lockedTotal > categoryBudget * 0.5) return 'rgba(23, 162, 184, 0.25)'; // Muted blue for moderate allocation
+    return 'rgba(40, 167, 69, 0.25)'; // Muted green for low allocation
   };
 
   const getCategoryStatus = (category: 'needs' | 'savings' | 'wants'): { status: string; color: string } => {
@@ -1068,6 +1070,7 @@ export const useBudgetItemsSectionLogic = (props: BudgetItemsSectionProps) => {
     getRemainingAmountColor,
     getAllocatedPercentageColor,
     getGlobalAllocatedPercentageColor,
+    getLockedItemsColor,
     getCategoryStatus,
     hasOverBudgetCategory,
     hasEmptyCategory,

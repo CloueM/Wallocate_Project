@@ -57,6 +57,7 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
     getRemainingAmountColor,
     getAllocatedPercentageColor,
     getGlobalAllocatedPercentageColor,
+    getLockedItemsColor,
     getCategoryStatus,
     hasOverBudgetCategory,
     hasEmptyCategory,
@@ -99,26 +100,156 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
 
   const [warningMessage, setWarningMessage] = useState('All good! Your budget is on track.');
   const [warningType, setWarningType] = useState<'success' | 'error'>('success');
+  const [shouldBounce, setShouldBounce] = useState(false);
 
-  useEffect(() => {
+  // Helper function to trigger bounce animation
+  const triggerBounce = () => {
+    setShouldBounce(true);
+    setTimeout(() => setShouldBounce(false), 600); // Match animation duration
+  };
+
+  // Helper function to get detailed warning message
+  const getDetailedWarningMessage = (): { message: string; type: 'success' | 'error' } => {
+    const totalIncome = parseInt(income) || 0;
+    const remainingAmount = Math.round(parseFloat(getRemainingAmount()));
+    const overBudgetCategories = getOverBudgetCategories();
+    const emptyCategories = getEmptyCategories();
+
+    // Check for over budget categories
+    if (overBudgetCategories.length > 0) {
+      const categoryNames = overBudgetCategories.map(cat => cat.charAt(0).toUpperCase() + cat.slice(1));
+      const categoryDetails = overBudgetCategories.map(category => {
+        const categoryKey = category as 'needs' | 'savings' | 'wants';
+        const categoryBudget = Math.floor((customPercentages[categoryKey] / 100) * totalIncome);
+        const categoryItems = budgetItems.filter(item => item.category === categoryKey);
+        const categoryTotal = categoryItems.reduce((sum, item) => sum + item.amount, 0);
+        const overAmount = categoryTotal - categoryBudget;
+        return `${category.charAt(0).toUpperCase() + category.slice(1)} is $${overAmount} over budget`;
+      }).join(', ');
+      
+      return {
+        message: `Budget exceeded: ${categoryDetails}. Reduce amounts or optimize budget.`,
+        type: 'error'
+      };
+    }
+
+    // Check for locked items exceeding category budget
     if (isLockedItemsUnderfunded()) {
-      const totalIncome = parseInt(income) || 0;
       const categories = ['needs', 'savings', 'wants'];
       const overfunded = categories
         .map(category => {
-          const categoryBudget = Math.floor((customPercentages[category] / 100) * totalIncome);
-          const lockedTotal = budgetItems.filter(item => item.category === category && lockedItems.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
+          const categoryKey = category as 'needs' | 'savings' | 'wants';
+          const categoryBudget = Math.floor((customPercentages[categoryKey] / 100) * totalIncome);
+          const lockedTotal = budgetItems.filter(item => item.category === categoryKey && lockedItems.has(item.id)).reduce((sum, item) => sum + item.amount, 0);
           if (lockedTotal > categoryBudget) {
-            return `${category.charAt(0).toUpperCase() + category.slice(1)}: locked $${lockedTotal} > budget $${categoryBudget}`;
+            const overAmount = lockedTotal - categoryBudget;
+            return `${category.charAt(0).toUpperCase() + category.slice(1)} locked items exceed budget by $${overAmount}`;
           }
           return null;
         })
         .filter(Boolean)
         .join(', ');
-      setWarningMessage(`Cannot optimize: Locked items exceed category budget. ${overfunded}. Unlock or reduce amounts to proceed.`);
-      setWarningType('error');
+      return {
+        message: `Locked items issue: ${overfunded}. Unlock or reduce amounts to proceed.`,
+        type: 'error'
+      };
+    }
+
+    // Check for empty categories
+    if (emptyCategories.length > 0) {
+      const categoryNames = emptyCategories.map(cat => cat.charAt(0).toUpperCase() + cat.slice(1));
+      return {
+        message: `Empty categories: ${categoryNames.join(', ')} ${categoryNames.length === 1 ? 'has' : 'have'} no items. Add items to complete your budget.`,
+        type: 'error'
+      };
+    }
+
+    // Check for remaining amount to allocate
+    if (remainingAmount > 0) {
+      // Find which categories have available space
+      const categoriesWithSpace = ['needs', 'savings', 'wants'].filter(category => {
+        const categoryKey = category as 'needs' | 'savings' | 'wants';
+        const categoryBudget = Math.floor((customPercentages[categoryKey] / 100) * totalIncome);
+        const categoryItems = budgetItems.filter(item => item.category === categoryKey);
+        const categoryTotal = categoryItems.reduce((sum, item) => sum + item.amount, 0);
+        return categoryTotal < categoryBudget;
+      });
+
+      if (categoriesWithSpace.length > 0) {
+        const availableSpaceDetails = categoriesWithSpace.map(category => {
+          const categoryKey = category as 'needs' | 'savings' | 'wants';
+          const categoryBudget = Math.floor((customPercentages[categoryKey] / 100) * totalIncome);
+          const categoryItems = budgetItems.filter(item => item.category === categoryKey);
+          const categoryTotal = categoryItems.reduce((sum, item) => sum + item.amount, 0);
+          const availableSpace = categoryBudget - categoryTotal;
+          return `${category.charAt(0).toUpperCase() + category.slice(1)} ($${availableSpace} available)`;
+        }).join(', ');
+
+        return {
+          message: `$${remainingAmount} remaining to allocate. Available in: ${availableSpaceDetails}.`,
+          type: 'error'
+        };
+      } else {
+        return {
+          message: `$${remainingAmount} remaining but all categories are at budget. Consider adjusting your plan percentages.`,
+          type: 'error'
+        };
+      }
+    }
+
+    // Check if over allocated
+    if (remainingAmount < 0) {
+      return {
+        message: `Over allocated by $${Math.abs(remainingAmount)}. Reduce amounts in over-budget categories.`,
+        type: 'error'
+      };
+    }
+
+    // All good
+    return {
+      message: 'Perfect! Your budget is fully allocated and balanced across all categories.',
+      type: 'success'
+    };
+  };
+
+  // Update warning message based on current state
+  useEffect(() => {
+    const { message, type } = getDetailedWarningMessage();
+    const wasError = warningType === 'error';
+    const isNowError = type === 'error';
+    
+    setWarningMessage(message);
+    setWarningType(type);
+    
+    // Trigger bounce if switching from success to error or if error message changes
+    if ((!wasError && isNowError) || (wasError && isNowError && warningMessage !== message)) {
+      triggerBounce();
     }
   }, [budgetItems, lockedItems, customPercentages, income]);
+
+  // Function to handle add item with better error messaging
+  const handleAddItemWithFeedback = () => {
+    const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+    const totalIncome = parseInt(income) || 0;
+    const categoryBudget = Math.floor((customPercentages[currentCategory] / 100) * totalIncome);
+    const categoryItems = budgetItems.filter(item => item.category === currentCategory);
+    const categoryTotal = categoryItems.reduce((sum, item) => sum + item.amount, 0);
+    const availableSpace = categoryBudget - categoryTotal;
+
+    if (availableSpace <= 0) {
+      const message = `Cannot add more items: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category has no available budget. Current total: $${categoryTotal}, Budget: $${categoryBudget}. Try reducing existing amounts or switching to another category.`;
+      setWarningMessage(message);
+      setWarningType('error');
+      triggerBounce();
+      return;
+    }
+
+    handleAddItem((msg) => { 
+      setWarningMessage(msg); 
+      setWarningType('error');
+      triggerBounce();
+    });
+  };
 
   // Checklist requirements - use the same logic as the displayed values
   const hasItemsInAllCategories = getEmptyCategories().length === 0;
@@ -374,11 +505,14 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                             if (!canLockItem(item)) {
                               setWarningMessage(getLockButtonTitle(item));
                               setWarningType('error');
+                              triggerBounce();
                             }
                           }}
                           onMouseLeave={() => {
-                            setWarningMessage('All good! Your budget is on track.');
-                            setWarningType('success');
+                            // Reset to current state when mouse leaves
+                            const { message, type } = getDetailedWarningMessage();
+                            setWarningMessage(message);
+                            setWarningType(type);
                           }}
                         >
                           🔒
@@ -406,11 +540,14 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                         if (isItemNameEmpty(item.id)) {
                           setWarningMessage('Enter item name first');
                           setWarningType('error');
+                          triggerBounce();
                         }
                       }}
                       onMouseLeave={() => {
-                        setWarningMessage('All good! Your budget is on track.');
-                        setWarningType('success');
+                        // Reset to current state when mouse leaves
+                        const { message, type } = getDetailedWarningMessage();
+                        setWarningMessage(message);
+                        setWarningType(type);
                       }}
                     />
                   </div>
@@ -447,18 +584,23 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                   <div className="table-cell table-actions-cell">
                     <button
                       className={`action-icon check-icon ${isCurrentCategoryOverBudget() ? 'disabled' : ''}`}
-                      onClick={() => handleAddItem((msg) => { setWarningMessage(msg); setWarningType('error'); })}
+                      onClick={handleAddItemWithFeedback}
                       disabled={isCurrentCategoryOverBudget()}
                       onMouseEnter={() => {
                         if (isCurrentCategoryOverBudget()) {
-                          setWarningMessage(`Cannot add: ${circleOrder[0].charAt(0).toUpperCase() + circleOrder[0].slice(1)} category is over budget`);
+                          const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
+                          const categoryBudget = getCurrentCategoryBudget();
+                          setWarningMessage(`Cannot add: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category is over budget ($${Math.round(categoryBudget)}). Please reduce existing amounts or optimize your budget first.`);
                           setWarningType('error');
+                          triggerBounce();
                         }
-                      }}
-                      onMouseLeave={() => {
-                        setWarningMessage('All good! Your budget is on track.');
-                        setWarningType('success');
-                      }}
+                                              }}
+                        onMouseLeave={() => {
+                          // Reset to current state when mouse leaves
+                          const { message, type } = getDetailedWarningMessage();
+                          setWarningMessage(message);
+                          setWarningType(type);
+                        }}
                     >
                       {emptyRowData.amount > 0 ? '🔒' : (
                         <img src="/images/icons/check-mark.png" alt="Add" className="action-icon-img" />
@@ -528,8 +670,9 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
                     if (isCurrentCategoryOverBudget()) {
                       const currentCategory = circleOrder[0] as 'needs' | 'savings' | 'wants';
                       const categoryBudget = getCurrentCategoryBudget();
-                      setWarningMessage(`Cannot add more items: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category is over budget ($${Math.round(categoryBudget)}). Please reduce existing amounts or optimize your budget first.`);
+                      setWarningMessage(`Cannot add more items: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)} category is over budget ($${Math.round(categoryBudget)}). Try reducing existing amounts or switching to another category.`);
                       setWarningType('error');
+                      triggerBounce();
                       return;
                     }
                     
@@ -569,36 +712,33 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
           {/* Row 4: Allocation Info */}
           <div className="budget-allocation-row">
             <div className="allocation-right">
-              <div className="allocation-info-box">
+              <div 
+                className="allocation-info-box"
+                style={{ backgroundColor: getRemainingAmountColor() }}
+              >
                 <div className="allocation-info-header">
-                  <div 
-                    className="allocation-color-indicator"
-                    style={{ backgroundColor: getRemainingAmountColor() }}
-                  ></div>
                 <h4 className="allocation-info-title">Remaining to Allocate</h4>
                 </div>
                 <div className="allocation-info-value">
                   ${Math.round(parseFloat(getRemainingAmount()))}
                 </div>
               </div>
-              <div className="allocation-info-box">
+              <div 
+                className="allocation-info-box"
+                style={{ backgroundColor: getGlobalAllocatedPercentageColor() }}
+              >
                 <div className="allocation-info-header">
-                  <div 
-                    className="allocation-color-indicator"
-                    style={{ backgroundColor: getGlobalAllocatedPercentageColor() }}
-                  ></div>
                 <h4 className="allocation-info-title">Allocated Percentage</h4>
                 </div>
                 <div className="allocation-info-value">
                   {Math.round(parseFloat(getGlobalAllocatedPercentage()))}%
                 </div>
               </div>
-              <div className="allocation-info-box">
+              <div 
+                className="allocation-info-box"
+                style={{ backgroundColor: getLockedItemsColor() }}
+              >
                 <div className="allocation-info-header">
-                  <div 
-                    className="allocation-color-indicator"
-                    style={{ backgroundColor: '#FFD700' }}
-                  ></div>
                 <h4 className="allocation-info-title">Locked Items ({lockedCountInCategory})</h4>
                 </div>
                 <div className="allocation-info-value">
@@ -653,7 +793,7 @@ const BudgetItemsSection: React.FC<BudgetItemsSectionProps> = (props) => {
             </div>
           </div>
           {/* Budget warning now as a new row below budget-actions */}
-          <div className={`budget-warning budget-warning-row ${warningType === 'success' ? 'success' : 'error'}`}>
+          <div className={`budget-warning budget-warning-row ${warningType === 'success' ? 'success' : 'error'} ${shouldBounce ? 'bounce' : ''}`}>
             <span className="warning-icon">{warningType === 'success' ? '✅' : '⚠️'}</span>
             <div className="warning-content">
               <p className="warning-text">{warningMessage}</p>
